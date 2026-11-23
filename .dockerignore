@@ -1,0 +1,9 @@
+.git
+.github
+.venv
+data
+notebooks
+reports
+__pycache__
+.pytest_cache
+

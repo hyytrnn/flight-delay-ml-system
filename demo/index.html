@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flight Delay Prediction Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #17212b; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input { width: 100%; box-sizing: border-box; padding: .65rem; margin-top: .25rem; }
+    button { margin-top: 1.25rem; padding: .75rem 1rem; background: #0f5b78; color: white; border: 0; cursor: pointer; }
+    pre { background: #f3f6f8; padding: 1rem; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Flight Delay Prediction</h1>
+  <p>Flight-only BTS benchmark model at a fixed T-24h decision horizon.</p>
+  <form id="form">
+    <label>Airline <input id="airline" value="AA" maxlength="5"></label>
+    <label>Origin <input id="origin" value="JFK" maxlength="3"></label>
+    <label>Destination <input id="destination" value="LAX" maxlength="3"></label>
+    <label>Scheduled departure <input id="departure" type="datetime-local" value="2027-02-10T08:30"></label>
+    <label>UTC offset <input id="offset" value="-05:00"></label>
+    <button type="submit">Predict</button>
+  </form>
+  <h2>API response</h2>
+  <pre id="output">Submit a flight to call http://localhost:8000/predict</pre>
+  <p><a href="http://localhost:8000/docs">Open Swagger documentation</a></p>
+  <script>
+    document.getElementById('form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const departure = document.getElementById('departure').value + ':00' + document.getElementById('offset').value;
+      const scheduled = new Date(departure);
+      const predictionAt = new Date(scheduled.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      const payload = {
+        airline: document.getElementById('airline').value,
+        origin: document.getElementById('origin').value,
+        destination: document.getElementById('destination').value,
+        scheduled_departure: departure,
+        prediction_at: predictionAt
+      };
+      const response = await fetch('http://localhost:8000/predict', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+      });
+      document.getElementById('output').textContent = JSON.stringify(await response.json(), null, 2);
+    });
+  </script>
+</body>
+</html>

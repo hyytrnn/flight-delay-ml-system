@@ -1,0 +1,2 @@
+filename,source_url,flight_year,flight_month,downloaded_at_utc,bytes,sha256,selected_fields,license_notes,run_kind
+bts_synthetic.csv,synthetic://committed-fixture,,,2026-11-23T14:15:32.720019+00:00,384,154d7e3f8ee370532834fb9b959a0f1b6d4da9c8594c98e58df357c4edfb6541,flight_date;reporting_airline;flight_number;origin;dest;crs_dep_time;crs_arr_time;crs_elapsed_time;distance;dep_del15;cancelled;diverted;dep_delay;taxi_out,Synthetic fixture; tests only,synthetic-smoke

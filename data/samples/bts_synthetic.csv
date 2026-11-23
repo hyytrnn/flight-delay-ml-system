@@ -1,0 +1,5 @@
+FlightDate,Reporting_Airline,Flight_Number_Reporting_Airline,Origin,Dest,CRSDepTime,CRSArrTime,CRSElapsedTime,Distance,DepDel15,Cancelled,Diverted,DepDelay,TaxiOut
+2025-01-15,AA,100,JFK,LAX,0830,1130,360,2475,1,0,0,25,18
+2025-01-16,AA,101,LAX,JFK,2400,0810,310,2475,0,0,0,-3,12
+2025-01-17,UA,200,ORD,JFK,0615,0930,135,740,,1,0,,
+2025-01-18,UA,201,XXX,JFK,0900,1200,120,700,0,0,0,0,10

@@ -1,0 +1,30 @@
+project:
+  name: flight-delay-ml-system
+  milestone: 1
+  target: dep_del15
+  prediction_horizon_hours: 24
+  random_seed: 42
+
+label_policy:
+  positive: dep_del15 == 1
+  negative: dep_del15 == 0
+  exclude_cancelled: true
+  exclude_diverted: true
+  exclude_missing_label: true
+
+time_policy:
+  crs_dep_time_2400: next_day_midnight
+  ambiguous_dst: earliest_fold_and_flag
+  nonexistent_dst: quarantine
+  prediction_at: scheduled_departure_utc_minus_24h
+
+data:
+  source: BTS Reporting Carrier On-Time Performance
+  raw_immutable: true
+  manifest: data/download_manifest.csv
+  airports_reference: data/external/airports.csv
+
+execution_status:
+  real_bts_ingestion: NOT_EXECUTED
+  reason: No BTS input file supplied
+

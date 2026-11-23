@@ -1,0 +1,13 @@
+seed: 42
+target: dep_del15
+prediction_horizon_hours: 24
+split:
+  train_end_exclusive: 2024-01-01
+  validation_end_exclusive: 2024-10-01
+  calibration_end_exclusive: 2025-01-01
+  test_start: 2025-01-01
+selection_metric: pr_auc
+threshold_objective: f1
+weather_features: false
+weather_reason: Issued-run coverage is not uniform for the complete 2023-2025 benchmark window
+

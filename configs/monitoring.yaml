@@ -1,0 +1,11 @@
+service:
+  metrics: [request_count, error_rate, latency_p50, latency_p95]
+data:
+  metrics: [missing_rate, unknown_route_rate, invalid_timestamp_rate]
+prediction:
+  metrics: [positive_rate, probability_distribution]
+drift:
+  method: psi
+  warning_threshold: null
+  note: Threshold must be selected from observed reference behavior, not invented.
+

@@ -1,0 +1,16 @@
+feature,event_time,available_at,t24_eligibility,policy
+origin,scheduled_service,schedule_publication_time,conditional,Retrospective BTS proxy until publication timestamp exists
+dest,scheduled_service,schedule_publication_time,conditional,Retrospective BTS proxy until publication timestamp exists
+reporting_airline,scheduled_service,schedule_publication_time,conditional,Retrospective BTS proxy until publication timestamp exists
+scheduled_departure,scheduled_service,schedule_publication_time,conditional,Retrospective BTS proxy until publication timestamp exists
+distance,route_static,reference_publication_time,conditional,Allowed only from versioned static or schedule source
+crs_elapsed_time,scheduled_service,schedule_publication_time,conditional,Allowed only when present in published schedule
+dep_del15,post_departure,BTS_publication_time,no,Target only
+dep_delay,post_departure,BTS_publication_time,no,Leakage blocked
+actual_departure,post_departure,BTS_publication_time,no,Leakage blocked
+taxi_out,post_departure,BTS_publication_time,no,Leakage blocked
+cancelled,post_decision,BTS_publication_time,no,Population policy only
+diverted,post_decision,BTS_publication_time,no,Population policy only
+weather_forecast,forecast_valid_time,forecast_issue_time,conditional,Issue time must be no later than prediction_at
+weather_reanalysis,weather_valid_time,reanalysis_publication_time,no,EDA only
+
