@@ -5,9 +5,9 @@ The benchmark uses calendar boundaries fixed before training:
 | Partition | Included benchmark months | Purpose |
 |---|---|---|
 | Train | January, April, July and October 2023 | Fit preprocessing and estimators |
-| Validation | January and July 2024 | Select the model family |
+| Validation | January 2024 | Select the model family |
 | Calibration | October 2024 | Fit Platt calibration and select the F1 threshold |
-| Locked test | January and July 2025 | Final evaluation after every decision is frozen |
+| Locked test | January 2025 | Final evaluation after every decision is frozen |
 
 The source months are a bounded portfolio benchmark, not the complete BTS
 population. Each month is deterministically capped during preparation to control

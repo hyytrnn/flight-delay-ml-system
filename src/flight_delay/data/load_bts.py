@@ -32,6 +32,7 @@ COLUMN_ALIASES = {
     "dep_del15": "dep_del15",
     "cancelled": "cancelled",
     "diverted": "diverted",
+    "nasdelay": "nas_delay",
 }
 
 BTS_KEEP_SOURCE_COLUMNS = frozenset(

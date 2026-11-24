@@ -11,6 +11,7 @@ from datetime import UTC
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
@@ -23,6 +24,12 @@ LATENCY = Histogram("flight_delay_request_seconds", "Flight delay API request la
 
 def create_app(model_path: str | Path | None = None) -> FastAPI:
     app = FastAPI(title="Flight Delay ML API", version="1.0.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["content-type", "x-request-id"],
+    )
     configured = Path(
         model_path
         or os.environ.get("FLIGHT_DELAY_MODEL_PATH", "models/flight_delay_bundle.joblib")
