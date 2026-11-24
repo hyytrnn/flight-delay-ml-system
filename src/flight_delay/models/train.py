@@ -209,7 +209,9 @@ def choose_threshold(y_true: np.ndarray, scores: np.ndarray) -> float:
     return float(candidates[int(np.argmax(f1_values))])
 
 
-def route_reference(frame: pl.DataFrame) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+def route_reference(
+    frame: pl.DataFrame,
+) -> tuple[dict[str, dict[str, float]], dict[str, float], dict[str, str]]:
     grouped = (
         frame.group_by("origin", "dest")
         .agg(
@@ -229,7 +231,16 @@ def route_reference(frame: pl.DataFrame) -> tuple[dict[str, dict[str, float]], d
         "distance": float(frame.get_column("distance").median()),
         "crs_elapsed_time": float(frame.get_column("crs_elapsed_time").median()),
     }
-    return lookup, defaults
+    airport_timezones = (
+        {
+            str(row["origin"]): str(row["origin_timezone"])
+            for row in frame.select("origin", "origin_timezone").unique().to_dicts()
+            if row["origin_timezone"] is not None
+        }
+        if "origin_timezone" in frame.columns
+        else {}
+    )
+    return lookup, defaults, airport_timezones
 
 
 def save_plots(y_true: np.ndarray, scores: np.ndarray, threshold: float, output: Path) -> None:
@@ -324,7 +335,7 @@ def train_evaluate(
         }
     )
 
-    lookup, defaults = route_reference(partitions["train"])
+    lookup, defaults, airport_timezones = route_reference(partitions["train"])
     metadata = {
         "model_version": "flight-only-v1.0.0",
         "created_at_utc": datetime.now(UTC).isoformat(),
@@ -346,6 +357,7 @@ def train_evaluate(
         metadata=metadata,
         route_lookup=lookup,
         defaults=defaults,
+        airport_timezones=airport_timezones,
     )
     save_bundle(bundle, artifact_path)
 

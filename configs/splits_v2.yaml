@@ -1,0 +1,42 @@
+version: v2-continuous-2023-2025
+target: dep_del15
+prediction_horizon_hours: 24
+historical_reference:
+  start: 2025-01-01
+  end_exclusive: 2025-02-01
+  purpose: V1 regression evidence only
+rolling_folds:
+  - name: fold_1
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-01-01
+    validation_start: 2024-01-01
+    validation_end_exclusive: 2024-04-01
+  - name: fold_2
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-04-01
+    validation_start: 2024-04-01
+    validation_end_exclusive: 2024-07-01
+  - name: fold_3
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-07-01
+    validation_start: 2024-07-01
+    validation_end_exclusive: 2024-10-01
+  - name: fold_4
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-10-01
+    validation_start: 2024-10-01
+    validation_end_exclusive: 2025-01-01
+calibration:
+  start: 2025-02-01
+  end_exclusive: 2025-04-01
+threshold_selection:
+  start: 2025-04-01
+  end_exclusive: 2025-06-01
+pre_holdout_validation:
+  start: 2025-06-01
+  end_exclusive: 2025-09-01
+final_holdout:
+  start: 2025-09-01
+  end_exclusive: 2025-10-01
+  policy: evaluate once after feature model calibration and threshold freeze
+

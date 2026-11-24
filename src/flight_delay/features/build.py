@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pandas as pd
 import polars as pl
@@ -22,6 +24,21 @@ NUMERIC_FEATURES = [
     "is_weekend",
 ]
 MODEL_FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES
+
+
+def scheduled_local_from_aware(
+    scheduled_departure: datetime, origin_timezone: str
+) -> pd.Timestamp:
+    """Convert one instant to origin wall time before calendar feature extraction."""
+
+    if scheduled_departure.tzinfo is None:
+        raise ValueError("scheduled_departure must be timezone-aware")
+    try:
+        origin_zone = ZoneInfo(origin_timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"unknown origin timezone: {origin_timezone}") from exc
+    local = scheduled_departure.astimezone(origin_zone).replace(tzinfo=None)
+    return pd.Timestamp(local)
 
 
 def _add_calendar_features_pandas(frame: pd.DataFrame) -> pd.DataFrame:

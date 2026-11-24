@@ -20,10 +20,34 @@ class CleanResult:
 
 
 def _normalize_airports(airports: pl.DataFrame) -> pl.DataFrame:
-    return airports.with_columns(
+    normalized = airports.with_columns(
         pl.col("iata_code").cast(pl.String).str.strip_chars().str.to_uppercase(),
         pl.col("timezone").cast(pl.String).str.strip_chars(),
-    ).select("iata_code", "timezone")
+    )
+    available = [
+        column
+        for column in [
+            "iata_code",
+            "timezone",
+            "latitude",
+            "longitude",
+            "elevation",
+            "country",
+            "subdivision",
+        ]
+        if column in normalized.columns
+    ]
+    return normalized.select(available)
+
+
+def _airport_reference(airports: pl.DataFrame, code_column: str, prefix: str) -> pl.DataFrame:
+    reference = _normalize_airports(airports)
+    return reference.rename(
+        {
+            column: code_column if column == "iata_code" else f"{prefix}_{column}"
+            for column in reference.columns
+        }
+    )
 
 
 def _parse_schedule(frame: pl.DataFrame) -> pl.DataFrame:
@@ -128,13 +152,9 @@ def clean_flights(flights: pl.DataFrame, airports: pl.DataFrame, run_kind: str) 
         raise ValueError("run_kind must be 'real' or 'synthetic-smoke'")
 
     frame = _parse_schedule(flights.with_row_index("_row_id"))
-    airport_ref = _normalize_airports(airports).rename(
-        {"iata_code": "origin", "timezone": "origin_timezone"}
-    )
+    airport_ref = _airport_reference(airports, "origin", "origin")
     frame = frame.join(airport_ref, on="origin", how="left")
-    destination_ref = _normalize_airports(airports).rename(
-        {"iata_code": "dest", "timezone": "dest_timezone"}
-    )
+    destination_ref = _airport_reference(airports, "dest", "dest")
     frame = frame.join(destination_ref, on="dest", how="left")
     frame = _localize_by_timezone(frame)
     if "_invalid_timezone" not in frame.columns:
