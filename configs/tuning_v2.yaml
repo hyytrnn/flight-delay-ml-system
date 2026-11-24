@@ -1,0 +1,19 @@
+seed: 42
+feature_group: F3
+models:
+  - xgboost
+  - lightgbm
+  - catboost
+pilot_trials_per_model: 5
+timeout_seconds_per_model: 1800
+data_root: data/processed/v2
+splits: configs/splits_v2.yaml
+development_end_exclusive: 2025-01-01
+storage: reports/optuna/v2_study.db
+output_root: reports/optuna
+selection_metric: mean_temporal_pr_auc
+notes:
+  - January 2025 is historical reference and excluded from tuning.
+  - September 2025 final holdout is excluded from every development query.
+  - Outer validation folds are never used for early stopping.
+
