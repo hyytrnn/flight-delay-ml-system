@@ -165,6 +165,14 @@ def prepare_month(
     }
 
 
+HOLDOUT_EXCLUDED_MONTHS: set[tuple[int, int]] = {
+    (2025, 9),
+    (2025, 10),
+    (2025, 11),
+    (2025, 12),
+}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-root", type=Path, default=Path("data/raw/bts"))
@@ -185,11 +193,14 @@ def main() -> int:
 
     if month_index(args.end_month) < month_index(args.start_month):
         parser.error("end month must not be before start month")
-    excluded = None if args.allow_holdout else {(2025, 9)}
-    if excluded and (
-        month_index(args.start_month) <= month_index((2025, 9)) <= month_index(args.end_month)
+    excluded = None if args.allow_holdout else set(HOLDOUT_EXCLUDED_MONTHS)
+    if excluded and any(
+        month_index(args.start_month) <= month_index(ym) <= month_index(args.end_month)
+        for ym in excluded
     ):
-        parser.error("2025-09 final holdout is excluded unless --allow-holdout is explicitly set")
+        parser.error(
+            "holdout month (2025-09..2025-12) is excluded unless --allow-holdout is explicitly set"
+        )
     inputs = discover_monthly_files(
         args.input_root,
         args.start_month,

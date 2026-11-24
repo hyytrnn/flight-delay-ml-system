@@ -1,0 +1,20 @@
+{
+  "v2_base_commit": "f83992226d3aa60004c517cb5d50df3a8ec2537a",
+  "v2_bundle_path": "models/flight_delay_v2_bundle.joblib",
+  "v2_bundle_sha256": "e5098119a9449bcd9ccf35f42d954ea58c654d4a062bdb734a3b3d47e46a678c",
+  "v2_bundle_bytes": 884986,
+  "v1_bundle_path": "models/flight_delay_bundle.joblib",
+  "v1_bundle_sha256": "33cef59201a640db870c00f51cb38dc3fb6fbec1b6b6b13128eb6de2a71926ee",
+  "bts_v2_manifest_sha256": "2ec48f400ec0b98f024cd953ce5efee0bbbf252ef8564cf7ac779725243c19a4",
+  "bts_v2_holdout_manifest_sha256": "fa78f1257a8f276726f09df3c1788887476d1db3da508c7d891288e818944dd4",
+  "v2_holdout_metrics_sha256": "37314534088e944219b1923b547f7370b9f4161a276d5692bea53a95630ff596",
+  "v2_holdout_window": "2025-09-01..2025-09-30",
+  "v2_holdout_status": "HISTORICAL_VIEWED_DO_NOT_TUNE",
+  "v2_model_version": "flight-only-v2.0.0-xgboost",
+  "v2_feature_group": "F3",
+  "v2_calibration_method": "none",
+  "v2_threshold": 0.185,
+  "v2_holdout_pr_auc": 0.29500896280508504,
+  "v2_holdout_roc_auc": 0.6867685831451267,
+  "v2_holdout_positive_rate": 0.16545
+}

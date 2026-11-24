@@ -1,0 +1,47 @@
+version: v2.1-continuous-2023-2025
+target: dep_del15
+prediction_horizon_hours: 24
+historical_v1_reference:
+  start: 2025-01-01
+  end_exclusive: 2025-02-01
+  purpose: V1 overlap reference only (historical, non-paired)
+rolling_folds:
+  - name: fold_1
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-01-01
+    validation_start: 2024-01-01
+    validation_end_exclusive: 2024-04-01
+  - name: fold_2
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-04-01
+    validation_start: 2024-04-01
+    validation_end_exclusive: 2024-07-01
+  - name: fold_3
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-07-01
+    validation_start: 2024-07-01
+    validation_end_exclusive: 2024-10-01
+  - name: fold_4
+    train_start: 2023-01-01
+    train_end_exclusive: 2024-10-01
+    validation_start: 2024-10-01
+    validation_end_exclusive: 2025-01-01
+calibration:
+  start: 2025-02-01
+  end_exclusive: 2025-04-01
+threshold_selection:
+  start: 2025-04-01
+  end_exclusive: 2025-06-01
+pre_holdout_validation:
+  start: 2025-06-01
+  end_exclusive: 2025-09-01
+historical_v2_reproducibility:
+  start: 2025-09-01
+  end_exclusive: 2025-10-01
+  status: HISTORICAL_VIEWED_IN_V2
+  policy: reproducibility check only; never use to select features, params, calibration, or thresholds
+prospective_holdout_v2_1:
+  start: 2025-10-01
+  end_exclusive: 2025-12-01
+  status: UNTOUCHED_UNTIL_GATE_G8
+  policy: evaluate strictly once after V2.1 feature group, model, calibration, and threshold are frozen

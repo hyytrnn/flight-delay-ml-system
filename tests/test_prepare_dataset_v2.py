@@ -109,3 +109,16 @@ def test_prepare_month_reports_sampling_rate_and_excludes_holdout_from_dev_load(
     dev = load_development_frame(out_root, date(2025, 9, 1))
     assert dev.height == 6
     assert dev.get_column("flight_date").max() < date(2025, 9, 1)
+
+
+def test_discover_monthly_files_rejects_prospective_v2_1_holdouts(tmp_path: Path) -> None:
+    from scripts.prepare_dataset_v2 import HOLDOUT_EXCLUDED_MONTHS
+
+    _write_bts_zip(tmp_path / "2025" / "08" / "aug.zip", "2025-08-05")
+    _write_bts_zip(tmp_path / "2025" / "10" / "oct.zip", "2025-10-05")
+    _write_bts_zip(tmp_path / "2025" / "11" / "nov.zip", "2025-11-05")
+
+    with pytest.raises(ValueError, match="2025-10"):
+        discover_monthly_files(
+            tmp_path, (2025, 8), (2025, 11), excluded_months=HOLDOUT_EXCLUDED_MONTHS
+        )

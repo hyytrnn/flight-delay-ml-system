@@ -18,6 +18,10 @@ data/processed/**/*
 models/**/*
 !models/.gitkeep
 !models/flight_delay_bundle.joblib
+!models/flight_delay_v2_bundle.joblib
+!models/flight_delay_v2_1_bundle.joblib
+!models/locked_v2_manifest.json
+!models/manifest_v2_1.json
 reports/smoke/*.parquet
 reports/data/v2_smoke/
 reports/eda_v2_smoke/
