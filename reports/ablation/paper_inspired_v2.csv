@@ -8,5 +8,5 @@ P5,Class weighting or resampling improves decision tradeoff,unweighted same mode
 P6,Optuna-tuned candidates improve stable temporal ranking,best untuned candidate,mean and worst-fold PR-AUC,SUPPORTED (XGB 0.33910 vs HGB 0.33347 / LR 0.32970),reports/metrics/v2_model_comparison.csv
 P7,Separated calibration improves probability quality,no calibration,Brier and logloss,EVALUATED_RAW_BEST (none Brier 0.1471 / ECE 0.0168 < platt 0.1479 / isotonic 0.1502),reports/metrics/v2_calibration.csv
 P8,Departure-delay magnitude provides useful auxiliary output,median baseline,MAE and RMSE,OUT_OF_BINARY_SCOPE_DEFERRED,
-P9,Grouped explanations are stable across folds,selected model,importance rank stability,PENDING_PHASE_6,
+P9,Grouped explanations are stable across folds,selected model,importance rank stability,SUPPORTED_TOP_DRIVERS_CONSISTENT (SHAP & Permutation agree on dep_hour_sin/carrier_origin/reporting_airline),reports/explainability/shap_grouped_importance.csv
 

@@ -1,0 +1,14 @@
+{
+  "created_at_utc": "2026-11-24T18:31:27.167817+00:00",
+  "current_positive_rate": 0.2604633333333333,
+  "current_rows": 300000,
+  "feature_psi": {
+    "crs_elapsed_time": 0.0014782652690406213,
+    "distance": 0.0019397726188986031,
+    "origin_elevation": 0.0023841561926510055
+  },
+  "interpretation": "Data drift is not proof of performance drift; delayed DepDel15 labels are required for outcome monitoring.",
+  "reference_positive_rate": 0.2040792,
+  "reference_rows": 2500000,
+  "unseen_route_rate": 0.0057866666666666665
+}

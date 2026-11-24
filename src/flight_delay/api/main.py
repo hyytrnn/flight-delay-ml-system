@@ -73,20 +73,29 @@ def create_app(model_path: str | Path | None = None) -> FastAPI:
 
     def predict_one(request: FlightRequest) -> PredictionResponse:
         bundle = bundle_or_503()
-        probability, label, route_status = bundle.predict_request(
-            reporting_airline=request.airline,
-            origin=request.origin,
-            dest=request.destination,
-            scheduled_departure=request.scheduled_departure,
-        )
+        try:
+            probability, label, route_status = bundle.predict_request(
+                reporting_airline=request.airline,
+                origin=request.origin,
+                dest=request.destination,
+                scheduled_departure=request.scheduled_departure,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         return PredictionResponse(
             delay_probability=probability,
             predicted_delayed=label,
             threshold=bundle.threshold,
             model_version=str(bundle.metadata["model_version"]),
-            weather_status="not_used_flight_only_model",
+            weather_status=str(
+                bundle.metadata.get("weather_status", "not_used_flight_only_model")
+            ),
             route_status=route_status,
             prediction_at_utc=request.prediction_at.astimezone(UTC),
+            feature_contract_version=str(
+                bundle.metadata.get("feature_contract_version", "t24-v1")
+            ),
+            data_freshness=bundle.metadata.get("data_freshness"),
         )
 
     @app.get("/health")

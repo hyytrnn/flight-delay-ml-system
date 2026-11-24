@@ -22,7 +22,7 @@ def population_stability_index(reference: np.ndarray, current: np.ndarray, bins:
 
 
 def build_report(reference: pl.DataFrame, current: pl.DataFrame) -> dict[str, object]:
-    numeric = ["distance", "crs_elapsed_time"]
+    numeric = [col for col in ["distance", "crs_elapsed_time", "origin_elevation"] if col in reference.columns and col in current.columns]
     psi = {
         column: population_stability_index(
             reference.get_column(column).drop_nulls().to_numpy(),
@@ -30,14 +30,32 @@ def build_report(reference: pl.DataFrame, current: pl.DataFrame) -> dict[str, ob
         )
         for column in numeric
     }
+    if {"origin", "dest"}.issubset(reference.columns) and {"origin", "dest"}.issubset(
+        current.columns
+    ):
+        ref_routes = set(
+            (reference.get_column("origin") + "|" + reference.get_column("dest"))
+            .unique()
+            .to_list()
+        )
+        cur_routes = (current.get_column("origin") + "|" + current.get_column("dest")).to_list()
+        unseen_route_rate: float | None = (
+            float(np.mean([route not in ref_routes for route in cur_routes])) if cur_routes else 0.0
+        )
+    else:
+        unseen_route_rate = None
     return {
         "created_at_utc": datetime.now(UTC).isoformat(),
         "reference_rows": reference.height,
         "current_rows": current.height,
         "feature_psi": psi,
+        "unseen_route_rate": unseen_route_rate,
         "reference_positive_rate": float(reference.get_column("dep_del15").mean()),
         "current_positive_rate": float(current.get_column("dep_del15").mean()),
-        "interpretation": "Data drift is not proof of performance drift; labels are required.",
+        "interpretation": (
+            "Data drift is not proof of performance drift; delayed DepDel15 labels are "
+            "required for outcome monitoring."
+        ),
     }
 
 
