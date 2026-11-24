@@ -7,7 +7,7 @@ import polars as pl
 
 from flight_delay.data.temporal import TemporalFold
 from flight_delay.features.v2 import build_v2_feature_frame
-from flight_delay.models.tuning_v2 import evaluate_params
+from flight_delay.models.tuning_v2 import _inner_chronological_split, evaluate_params
 
 
 def tiny_tuning_frame() -> pl.DataFrame:
@@ -64,4 +64,39 @@ def test_temporal_objective_never_receives_future_holdout() -> None:
     assert len(results) == 1
     assert results[0].rows_train == 40
     assert results[0].rows_validation == 40
+
+
+def test_baselines_and_inner_chronological_split_preserve_order() -> None:
+    dates = pd.Series(pd.date_range("2023-01-01", periods=800, freq="D"))
+    split = _inner_chronological_split(dates, fraction=0.15)
+    assert split is not None
+    in_tr, in_va = split
+    assert dates.loc[in_tr].max() < dates.loc[in_va].min()
+
+    frame = tiny_tuning_frame()
+    features = build_v2_feature_frame(frame, "F0")
+    frame_dates = pd.to_datetime(frame.get_column("flight_date").to_pandas())
+    labels = frame.get_column("dep_del15").to_numpy()
+    fold = TemporalFold(
+        name="fold",
+        train_start=date(2023, 1, 1),
+        train_end_exclusive=date(2024, 1, 1),
+        validation_start=date(2024, 1, 1),
+        validation_end_exclusive=date(2024, 3, 1),
+    )
+    for model_name in ["dummy_prior", "logistic_regression", "hist_gradient_boosting"]:
+        res = evaluate_params(
+            model_name=model_name,  # type: ignore[arg-type]
+            params={},
+            features=features,
+            labels=labels,
+            dates=frame_dates,
+            folds=[fold],
+            feature_group="F0",
+            seed=42,
+            class_weight_mode="balanced" if model_name == "logistic_regression" else "none",
+        )
+        assert len(res) == 1
+        assert 0.0 <= res[0].pr_auc <= 1.0
+
 

@@ -1,4 +1,4 @@
-"""Optuna model tuning on expanding temporal folds without test access."""
+"""Optuna model tuning and baseline comparison on expanding temporal folds without test access."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Literal
 
+import lightgbm as lgb
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import pandas as pd
@@ -17,16 +22,34 @@ import yaml
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from sklearn.compose import ColumnTransformer
+from sklearn.dummy import DummyClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    log_loss,
+    roc_auc_score,
+)
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 from xgboost import XGBClassifier
 
 from flight_delay.data.temporal import TemporalFold, fold_from_mapping
 from flight_delay.features.v2 import FeatureGroup, build_v2_feature_frame, v2_feature_columns
+from flight_delay.models.predictor import CategoricalFrameTransformer
 
 ModelName = Literal["xgboost", "lightgbm", "catboost"]
+AllModelName = Literal[
+    "dummy_prior",
+    "logistic_regression",
+    "hist_gradient_boosting",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+]
+ClassWeightMode = Literal["none", "balanced"]
 
 
 @dataclass(frozen=True)
@@ -38,7 +61,22 @@ class FoldResult:
     pr_auc: float
     roc_auc: float
     brier: float
+    log_loss: float
     fit_seconds: float
+
+
+@dataclass
+class _EncodedFold:
+    name: str
+    rows_train: int
+    rows_validation: int
+    x_in_tr: Any
+    y_in_tr: np.ndarray
+    x_in_va: Any
+    y_in_va: np.ndarray
+    x_val: Any
+    y_val: np.ndarray
+    pos_weight_in: float
 
 
 def load_splits(path: Path) -> list[TemporalFold]:
@@ -56,14 +94,22 @@ def load_development_frame(data_root: Path, end_exclusive: date) -> pl.DataFrame
     )
 
 
+def _xgb_preprocessor(numeric: list[str], categorical: list[str]) -> CategoricalFrameTransformer:
+    return CategoricalFrameTransformer(numeric, categorical, min_frequency=100, max_categories=300)
+
+
 def _onehot_preprocessor(numeric: list[str], categorical: list[str]) -> ColumnTransformer:
+    high_card = {"carrier_origin", "carrier_route", "origin_hour", "route_season"}
+    base_cat = [col for col in categorical if col not in high_card]
+    hc_cat = [col for col in categorical if col in high_card]
+
     numeric_pipe = Pipeline(
         [
             ("impute", SimpleImputer(strategy="median", add_indicator=True)),
             ("scale", StandardScaler(with_mean=False)),
         ]
     )
-    categorical_pipe = Pipeline(
+    base_cat_pipe = Pipeline(
         [
             ("impute", SimpleImputer(strategy="constant", fill_value="UNKNOWN")),
             (
@@ -72,18 +118,79 @@ def _onehot_preprocessor(numeric: list[str], categorical: list[str]) -> ColumnTr
             ),
         ]
     )
+    transformers: list[tuple[str, Any, list[str]]] = [
+        ("num", numeric_pipe, numeric),
+        ("cat_base", base_cat_pipe, base_cat),
+    ]
+    if hc_cat:
+        hc_cat_pipe = Pipeline(
+            [
+                ("impute", SimpleImputer(strategy="constant", fill_value="UNKNOWN")),
+                (
+                    "encode",
+                    OneHotEncoder(
+                        handle_unknown="ignore",
+                        min_frequency=500,
+                        max_categories=300,
+                        sparse_output=True,
+                    ),
+                ),
+            ]
+        )
+        transformers.append(("cat_hc", hc_cat_pipe, hc_cat))
+    return ColumnTransformer(transformers)
+
+
+def _dense_preprocessor(numeric: list[str], categorical: list[str]) -> ColumnTransformer:
+    numeric_pipe = SimpleImputer(strategy="median", add_indicator=True)
+    categorical_pipe = Pipeline(
+        [
+            ("impute", SimpleImputer(strategy="constant", fill_value="UNKNOWN")),
+            (
+                "encode",
+                OrdinalEncoder(
+                    handle_unknown="use_encoded_value",
+                    unknown_value=-1,
+                    encoded_missing_value=-1,
+                ),
+            ),
+        ]
+    )
     return ColumnTransformer(
         [("num", numeric_pipe, numeric), ("cat", categorical_pipe, categorical)]
     )
 
 
+def _inner_chronological_split(
+    dates_train: pd.Series, fraction: float = 0.15
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Split train rows chronologically into inner-train and inner-val for early stopping."""
+
+    if len(dates_train) < 500:
+        return None
+    cutoff = dates_train.quantile(1.0 - fraction)
+    inner_train = (dates_train < cutoff).to_numpy()
+    inner_val = (dates_train >= cutoff).to_numpy()
+    if inner_train.sum() < 200 or inner_val.sum() < 100:
+        return None
+    return inner_train, inner_val
+
+
+def _pos_weight(y_train: np.ndarray, mode: ClassWeightMode) -> float:
+    if mode != "balanced":
+        return 1.0
+    pos = float((y_train == 1).sum())
+    neg = float((y_train == 0).sum())
+    return neg / pos if pos > 0 else 1.0
+
+
 def suggest_params(trial: optuna.Trial, model_name: ModelName) -> dict[str, Any]:
     if model_name == "xgboost":
         return {
-            "n_estimators": trial.suggest_int("n_estimators", 300, 1_200, step=100),
-            "max_depth": trial.suggest_int("max_depth", 3, 8),
-            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.15, log=True),
-            "min_child_weight": trial.suggest_int("min_child_weight", 1, 20),
+            "n_estimators": trial.suggest_int("n_estimators", 300, 700, step=100),
+            "max_depth": trial.suggest_int("max_depth", 3, 7),
+            "learning_rate": trial.suggest_float("learning_rate", 0.02, 0.15, log=True),
+            "min_child_weight": trial.suggest_int("min_child_weight", 2, 20),
             "subsample": trial.suggest_float("subsample", 0.65, 1.0),
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.65, 1.0),
             "gamma": trial.suggest_float("gamma", 0.0, 8.0),
@@ -104,12 +211,71 @@ def suggest_params(trial: optuna.Trial, model_name: ModelName) -> dict[str, Any]
             "lambda_l2": trial.suggest_float("lambda_l2", 1e-4, 100.0, log=True),
         }
     return {
-        "iterations": trial.suggest_int("iterations", 300, 1_200, step=100),
-        "depth": trial.suggest_int("depth", 4, 9),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.15, log=True),
+        "iterations": trial.suggest_int("iterations", 300, 700, step=100),
+        "depth": trial.suggest_int("depth", 4, 7),
+        "learning_rate": trial.suggest_float("learning_rate", 0.02, 0.15, log=True),
         "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1.0, 30.0, log=True),
         "random_strength": trial.suggest_float("random_strength", 1e-3, 10.0, log=True),
     }
+
+
+def _fit_predict_baseline(
+    model_name: Literal["dummy_prior", "logistic_regression", "hist_gradient_boosting"],
+    params: dict[str, Any],
+    numeric: list[str],
+    categorical: list[str],
+    x_train: pd.DataFrame,
+    y_train: np.ndarray,
+    x_validation: pd.DataFrame,
+    seed: int,
+    class_weight_mode: ClassWeightMode = "none",
+) -> tuple[np.ndarray, float]:
+    class_weight = "balanced" if class_weight_mode == "balanced" else None
+    if model_name == "dummy_prior":
+        pipeline = Pipeline(
+            [
+                ("preprocessor", _onehot_preprocessor(numeric, categorical)),
+                ("classifier", DummyClassifier(strategy="prior")),
+            ]
+        )
+    elif model_name == "logistic_regression":
+        pipeline = Pipeline(
+            [
+                ("preprocessor", _onehot_preprocessor(numeric, categorical)),
+                (
+                    "classifier",
+                    LogisticRegression(
+                        C=float(params.get("C", 1.0)),
+                        max_iter=int(params.get("max_iter", 200)),
+                        tol=1e-3,
+                        class_weight=class_weight,
+                        random_state=seed,
+                        solver="lbfgs",
+                    ),
+                ),
+            ]
+        )
+    else:
+        pipeline = Pipeline(
+            [
+                ("preprocessor", _dense_preprocessor(numeric, categorical)),
+                (
+                    "classifier",
+                    HistGradientBoostingClassifier(
+                        learning_rate=float(params.get("learning_rate", 0.08)),
+                        max_iter=int(params.get("max_iter", 220)),
+                        max_leaf_nodes=int(params.get("max_leaf_nodes", 31)),
+                        min_samples_leaf=int(params.get("min_samples_leaf", 50)),
+                        class_weight=class_weight,
+                        random_state=seed,
+                    ),
+                ),
+            ]
+        )
+    started = time.perf_counter()
+    pipeline.fit(x_train, y_train)
+    elapsed = time.perf_counter() - started
+    return pipeline.predict_proba(x_validation)[:, 1], elapsed
 
 
 def _fit_predict_onehot(
@@ -121,26 +287,85 @@ def _fit_predict_onehot(
     y_train: np.ndarray,
     x_validation: pd.DataFrame,
     seed: int,
+    *,
+    dates_train: pd.Series | None = None,
+    class_weight_mode: ClassWeightMode = "none",
+    early_stopping_rounds: int = 50,
 ) -> tuple[np.ndarray, float]:
+    pos_weight = _pos_weight(y_train, class_weight_mode)
+    run_params = dict(params)
+    inner_split = (
+        _inner_chronological_split(dates_train) if dates_train is not None else None
+    )
+
+    started = time.perf_counter()
+    if inner_split is not None and int(run_params.get("n_estimators", 0)) > early_stopping_rounds:
+        in_tr_mask, in_va_mask = inner_split
+        inner_pre = (
+            _xgb_preprocessor(numeric, categorical)
+            if model_name == "xgboost"
+            else _onehot_preprocessor(numeric, categorical)
+        )
+        x_in_tr = inner_pre.fit_transform(x_train.loc[in_tr_mask])
+        x_in_va = inner_pre.transform(x_train.loc[in_va_mask])
+        y_in_tr = y_train[in_tr_mask]
+        y_in_va = y_train[in_va_mask]
+        in_pos_weight = _pos_weight(y_in_tr, class_weight_mode)
+        if model_name == "xgboost":
+            probe = XGBClassifier(
+                **run_params,
+                scale_pos_weight=in_pos_weight,
+                random_state=seed,
+                n_jobs=-1,
+                tree_method="hist",
+                enable_categorical=True,
+                max_cat_to_onehot=16,
+                eval_metric="logloss",
+                early_stopping_rounds=early_stopping_rounds,
+            )
+            probe.fit(x_in_tr, y_in_tr, eval_set=[(x_in_va, y_in_va)], verbose=False)
+        else:
+            probe = LGBMClassifier(
+                **run_params,
+                scale_pos_weight=in_pos_weight,
+                random_state=seed,
+                n_jobs=-1,
+                verbosity=-1,
+            )
+            probe.fit(
+                x_in_tr,
+                y_in_tr,
+                eval_X=x_in_va,
+                eval_y=y_in_va,
+                eval_metric="average_precision",
+                callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)],
+            )
+        elapsed = time.perf_counter() - started
+        x_val_tx = inner_pre.transform(x_validation)
+        return probe.predict_proba(x_val_tx)[:, 1], elapsed
+
     if model_name == "xgboost":
         estimator = XGBClassifier(
-            **params,
+            **run_params,
+            scale_pos_weight=pos_weight,
             random_state=seed,
-            n_jobs=4,
+            n_jobs=-1,
             tree_method="hist",
+            enable_categorical=True,
+            max_cat_to_onehot=16,
             eval_metric="logloss",
         )
+        pre: Any = _xgb_preprocessor(numeric, categorical)
     else:
         estimator = LGBMClassifier(
-            **params,
+            **run_params,
+            scale_pos_weight=pos_weight,
             random_state=seed,
-            n_jobs=4,
+            n_jobs=-1,
             verbosity=-1,
         )
-    pipeline = Pipeline(
-        [("preprocessor", _onehot_preprocessor(numeric, categorical)), ("classifier", estimator)]
-    )
-    started = time.perf_counter()
+        pre = _onehot_preprocessor(numeric, categorical)
+    pipeline = Pipeline([("preprocessor", pre), ("classifier", estimator)])
     pipeline.fit(x_train, y_train)
     elapsed = time.perf_counter() - started
     return pipeline.predict_proba(x_validation)[:, 1], elapsed
@@ -153,23 +378,57 @@ def _fit_predict_catboost(
     y_train: np.ndarray,
     x_validation: pd.DataFrame,
     seed: int,
+    *,
+    dates_train: pd.Series | None = None,
+    class_weight_mode: ClassWeightMode = "none",
+    early_stopping_rounds: int = 50,
 ) -> tuple[np.ndarray, float]:
     train = x_train.copy()
     validation = x_validation.copy()
     for column in categorical:
         train[column] = train[column].astype("string").fillna("UNKNOWN")
         validation[column] = validation[column].astype("string").fillna("UNKNOWN")
+
+    run_params = dict(params)
+    auto_weights = "Balanced" if class_weight_mode == "balanced" else None
+    inner_split = (
+        _inner_chronological_split(dates_train) if dates_train is not None else None
+    )
+
+    started = time.perf_counter()
+    if inner_split is not None and int(run_params.get("iterations", 0)) > early_stopping_rounds:
+        in_tr_mask, in_va_mask = inner_split
+        probe = CatBoostClassifier(
+            **run_params,
+            cat_features=categorical,
+            auto_class_weights=auto_weights,
+            random_seed=seed,
+            loss_function="Logloss",
+            eval_metric="PRAUC",
+            early_stopping_rounds=early_stopping_rounds,
+            verbose=False,
+            allow_writing_files=False,
+            thread_count=-1,
+        )
+        probe.fit(
+            train.loc[in_tr_mask],
+            y_train[in_tr_mask],
+            eval_set=(train.loc[in_va_mask], y_train[in_va_mask]),
+        )
+        elapsed = time.perf_counter() - started
+        return probe.predict_proba(validation)[:, 1], elapsed
+
     estimator = CatBoostClassifier(
-        **params,
+        **run_params,
         cat_features=categorical,
+        auto_class_weights=auto_weights,
         random_seed=seed,
         loss_function="Logloss",
         eval_metric="PRAUC",
         verbose=False,
         allow_writing_files=False,
-        thread_count=4,
+        thread_count=-1,
     )
-    started = time.perf_counter()
     estimator.fit(train, y_train)
     elapsed = time.perf_counter() - started
     return estimator.predict_proba(validation)[:, 1], elapsed
@@ -177,7 +436,7 @@ def _fit_predict_catboost(
 
 def evaluate_params(
     *,
-    model_name: ModelName,
+    model_name: AllModelName,
     params: dict[str, Any],
     features: pd.DataFrame,
     labels: np.ndarray,
@@ -185,6 +444,8 @@ def evaluate_params(
     folds: list[TemporalFold],
     feature_group: FeatureGroup,
     seed: int,
+    class_weight_mode: ClassWeightMode = "none",
+    use_inner_early_stopping: bool = True,
 ) -> list[FoldResult]:
     numeric, categorical = v2_feature_columns(feature_group)
     results: list[FoldResult] = []
@@ -200,7 +461,21 @@ def evaluate_params(
             raise ValueError(f"empty data for {fold.name}")
         x_train, x_validation = features.loc[train_mask], features.loc[validation_mask]
         y_train, y_validation = labels[train_mask], labels[validation_mask]
-        if model_name == "catboost":
+        dates_train = dates.loc[train_mask] if use_inner_early_stopping else None
+
+        if model_name in {"dummy_prior", "logistic_regression", "hist_gradient_boosting"}:
+            scores, fit_seconds = _fit_predict_baseline(
+                model_name,
+                params,
+                numeric,
+                categorical,
+                x_train,
+                y_train,
+                x_validation,
+                seed,
+                class_weight_mode=class_weight_mode,
+            )
+        elif model_name == "catboost":
             scores, fit_seconds = _fit_predict_catboost(
                 params,
                 categorical,
@@ -208,6 +483,8 @@ def evaluate_params(
                 y_train,
                 x_validation,
                 seed,
+                dates_train=dates_train,
+                class_weight_mode=class_weight_mode,
             )
         else:
             scores, fit_seconds = _fit_predict_onehot(
@@ -219,7 +496,10 @@ def evaluate_params(
                 y_train,
                 x_validation,
                 seed,
+                dates_train=dates_train,
+                class_weight_mode=class_weight_mode,
             )
+        clipped = np.clip(scores, 1e-6, 1.0 - 1e-6)
         results.append(
             FoldResult(
                 fold=fold.name,
@@ -229,6 +509,148 @@ def evaluate_params(
                 pr_auc=float(average_precision_score(y_validation, scores)),
                 roc_auc=float(roc_auc_score(y_validation, scores)),
                 brier=float(brier_score_loss(y_validation, scores)),
+                log_loss=float(log_loss(y_validation, np.column_stack([1.0 - clipped, clipped]))),
+                fit_seconds=fit_seconds,
+            )
+        )
+    return results
+
+
+def summarize_fold_results(
+    *,
+    model_name: str,
+    feature_group: str,
+    class_weight_mode: str,
+    results: list[FoldResult],
+    source: str,
+) -> dict[str, Any]:
+    pr_scores = [r.pr_auc for r in results]
+    return {
+        "model": model_name,
+        "feature_group": feature_group,
+        "class_weight": class_weight_mode,
+        "source": source,
+        "mean_pr_auc": float(np.mean(pr_scores)),
+        "std_pr_auc": float(np.std(pr_scores)),
+        "worst_fold_pr_auc": float(np.min(pr_scores)),
+        "mean_roc_auc": float(np.mean([r.roc_auc for r in results])),
+        "mean_brier": float(np.mean([r.brier for r in results])),
+        "mean_log_loss": float(np.mean([r.log_loss for r in results])),
+        "mean_prevalence_baseline": float(
+            np.mean([r.positive_rate_validation for r in results])
+        ),
+        "mean_fit_seconds": float(np.mean([r.fit_seconds for r in results])),
+    }
+
+
+def _prepare_encoded_folds(
+    *,
+    model_name: Literal["xgboost", "lightgbm"],
+    features: pd.DataFrame,
+    labels: np.ndarray,
+    dates: pd.Series,
+    folds: list[TemporalFold],
+    feature_group: FeatureGroup,
+    class_weight_mode: ClassWeightMode,
+) -> list[_EncodedFold]:
+    numeric, categorical = v2_feature_columns(feature_group)
+    encoded: list[_EncodedFold] = []
+    for fold in folds:
+        fold.validate()
+        train_mask = (dates >= pd.Timestamp(fold.train_start)) & (
+            dates < pd.Timestamp(fold.train_end_exclusive)
+        )
+        validation_mask = (dates >= pd.Timestamp(fold.validation_start)) & (
+            dates < pd.Timestamp(fold.validation_end_exclusive)
+        )
+        x_train, x_val = features.loc[train_mask], features.loc[validation_mask]
+        y_train, y_val = labels[train_mask], labels[validation_mask]
+        split = _inner_chronological_split(dates.loc[train_mask])
+        if split is None:
+            in_tr_mask = np.ones(len(x_train), dtype=bool)
+            in_va_mask = np.ones(len(x_train), dtype=bool)
+        else:
+            in_tr_mask, in_va_mask = split
+        pre: Any = (
+            _xgb_preprocessor(numeric, categorical)
+            if model_name == "xgboost"
+            else _onehot_preprocessor(numeric, categorical)
+        )
+        x_in_tr = pre.fit_transform(x_train.loc[in_tr_mask])
+        x_in_va = pre.transform(x_train.loc[in_va_mask])
+        x_val_tx = pre.transform(x_val)
+        y_in_tr = y_train[in_tr_mask]
+        y_in_va = y_train[in_va_mask]
+        encoded.append(
+            _EncodedFold(
+                name=fold.name,
+                rows_train=int(train_mask.sum()),
+                rows_validation=int(validation_mask.sum()),
+                x_in_tr=x_in_tr,
+                y_in_tr=y_in_tr,
+                x_in_va=x_in_va,
+                y_in_va=y_in_va,
+                x_val=x_val_tx,
+                y_val=y_val,
+                pos_weight_in=_pos_weight(y_in_tr, class_weight_mode),
+            )
+        )
+    return encoded
+
+
+def _evaluate_encoded_folds(
+    *,
+    model_name: Literal["xgboost", "lightgbm"],
+    params: dict[str, Any],
+    encoded_folds: list[_EncodedFold],
+    seed: int,
+    early_stopping_rounds: int = 40,
+) -> list[FoldResult]:
+    results: list[FoldResult] = []
+    for ef in encoded_folds:
+        started = time.perf_counter()
+        if model_name == "xgboost":
+            est = XGBClassifier(
+                **params,
+                scale_pos_weight=ef.pos_weight_in,
+                random_state=seed,
+                n_jobs=-1,
+                tree_method="hist",
+                enable_categorical=True,
+                max_cat_to_onehot=16,
+                eval_metric="logloss",
+                early_stopping_rounds=early_stopping_rounds,
+            )
+            est.fit(ef.x_in_tr, ef.y_in_tr, eval_set=[(ef.x_in_va, ef.y_in_va)], verbose=False)
+        else:
+            est = LGBMClassifier(
+                **params,
+                scale_pos_weight=ef.pos_weight_in,
+                random_state=seed,
+                n_jobs=-1,
+                verbosity=-1,
+            )
+            est.fit(
+                ef.x_in_tr,
+                ef.y_in_tr,
+                eval_X=ef.x_in_va,
+                eval_y=ef.y_in_va,
+                eval_metric="average_precision",
+                callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)],
+            )
+        fit_seconds = time.perf_counter() - started
+        scores = est.predict_proba(ef.x_val)[:, 1]
+        clipped = np.clip(scores, 1e-6, 1.0 - 1e-6)
+        results.append(
+            FoldResult(
+                fold=ef.name,
+                rows_train=ef.rows_train,
+                rows_validation=ef.rows_validation,
+                positive_rate_validation=float(ef.y_val.mean()),
+                pr_auc=float(average_precision_score(ef.y_val, scores)),
+                roc_auc=float(roc_auc_score(ef.y_val, scores)),
+                brier=float(brier_score_loss(ef.y_val, scores)),
+                log_loss=float(log_loss(ef.y_val, np.column_stack([1.0 - clipped, clipped]))),
                 fit_seconds=fit_seconds,
             )
         )
@@ -244,24 +666,39 @@ def make_objective(
     folds: list[TemporalFold],
     feature_group: FeatureGroup,
     seed: int,
+    class_weight_mode: ClassWeightMode = "none",
+    encoded_folds: list[_EncodedFold] | None = None,
 ):
     def objective(trial: optuna.Trial) -> float:
         params = suggest_params(trial, model_name)
-        results = evaluate_params(
-            model_name=model_name,
-            params=params,
-            features=features,
-            labels=labels,
-            dates=dates,
-            folds=folds,
-            feature_group=feature_group,
-            seed=seed,
-        )
+        if encoded_folds is not None and model_name in {"xgboost", "lightgbm"}:
+            results = _evaluate_encoded_folds(
+                model_name=model_name,
+                params=params,
+                encoded_folds=encoded_folds,
+                seed=seed,
+            )
+        else:
+            results = evaluate_params(
+                model_name=model_name,
+                params=params,
+                features=features,
+                labels=labels,
+                dates=dates,
+                folds=folds,
+                feature_group=feature_group,
+                seed=seed,
+                class_weight_mode=class_weight_mode,
+                use_inner_early_stopping=True,
+            )
         scores = [result.pr_auc for result in results]
         trial.set_user_attr("pr_auc_by_fold", scores)
         trial.set_user_attr("mean_pr_auc", float(np.mean(scores)))
         trial.set_user_attr("std_pr_auc", float(np.std(scores)))
         trial.set_user_attr("worst_fold_pr_auc", float(np.min(scores)))
+        trial.set_user_attr("mean_roc_auc", float(np.mean([r.roc_auc for r in results])))
+        trial.set_user_attr("mean_brier", float(np.mean([r.brier for r in results])))
+        trial.set_user_attr("mean_log_loss", float(np.mean([r.log_loss for r in results])))
         trial.set_user_attr("fold_results", [result.__dict__ for result in results])
         return float(np.mean(scores))
 
@@ -278,13 +715,27 @@ def run_study(
     trials: int,
     timeout: int,
     seed: int,
+    class_weight_mode: ClassWeightMode = "none",
 ) -> optuna.Study:
     features = build_v2_feature_frame(frame, feature_group)
     labels = frame.get_column("dep_del15").to_numpy().astype(int)
     dates = pd.to_datetime(frame.get_column("flight_date").to_pandas())
+    encoded_folds = (
+        _prepare_encoded_folds(
+            model_name=model_name,
+            features=features,
+            labels=labels,
+            dates=dates,
+            folds=folds,
+            feature_group=feature_group,
+            class_weight_mode=class_weight_mode,
+        )
+        if model_name in {"xgboost", "lightgbm"}
+        else None
+    )
     sampler = optuna.samplers.TPESampler(seed=seed)
     study = optuna.create_study(
-        study_name=f"v2_{model_name}_{feature_group}",
+        study_name=f"v2_{model_name}_{feature_group}_{class_weight_mode}",
         storage=storage,
         direction="maximize",
         sampler=sampler,
@@ -299,6 +750,8 @@ def run_study(
             folds=folds,
             feature_group=feature_group,
             seed=seed,
+            class_weight_mode=class_weight_mode,
+            encoded_folds=encoded_folds,
         ),
         n_trials=trials,
         timeout=timeout,
@@ -325,4 +778,19 @@ def export_study(study: optuna.Study, output_root: Path, model_name: str) -> Non
         ),
         encoding="utf-8",
     )
-
+    completed = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    if len(completed) >= 2:
+        try:
+            importances = optuna.importance.get_param_importances(study)
+            if importances:
+                names = list(importances.keys())[::-1]
+                vals = [importances[k] for k in names]
+                plt.figure(figsize=(7.5, max(3.5, 0.4 * len(names))))
+                plt.barh(names, vals, color="#2e6f95")
+                plt.xlabel("Hyperparameter importance")
+                plt.title(f"Optuna hyperparameter importance ({model_name})")
+                plt.tight_layout()
+                plt.savefig(output_root / f"{model_name}_optuna_importance.png", dpi=150)
+                plt.close()
+        except (ValueError, RuntimeError):
+            plt.close()

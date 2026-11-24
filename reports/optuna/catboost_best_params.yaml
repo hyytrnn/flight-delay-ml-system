@@ -1,0 +1,5 @@
+depth: 7
+iterations: 400
+l2_leaf_reg: 7.6611007077713635
+learning_rate: 0.08741169448864673
+random_strength: 0.004207988669606638
