@@ -65,7 +65,11 @@ def file_sha256(path: Path) -> str:
 
 def git_sha(root: Path) -> str:
     result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+        ["git", "-c", f"safe.directory={root.as_posix()}", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else "uncommitted"
 
