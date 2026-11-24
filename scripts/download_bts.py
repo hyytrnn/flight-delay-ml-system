@@ -53,6 +53,47 @@ def valid_zip(path: Path) -> bool:
         return False
 
 
+def remote_size(url: str) -> int:
+    request = urllib.request.Request(
+        url,
+        method="HEAD",
+        headers={"User-Agent": "flight-delay-ml-system/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return int(response.headers["Content-Length"])
+
+
+def download_with_resume(url: str, partial: Path, expected_bytes: int) -> None:
+    """Resume after BTS closes a response before Content-Length is reached."""
+
+    for _ in range(12):
+        current_bytes = partial.stat().st_size if partial.exists() else 0
+        if current_bytes == expected_bytes:
+            return
+        if current_bytes > expected_bytes:
+            partial.unlink()
+            current_bytes = 0
+        headers = {"User-Agent": "flight-delay-ml-system/1.0"}
+        if current_bytes:
+            headers["Range"] = f"bytes={current_bytes}-"
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=120) as response:
+            if current_bytes and response.status != 206:
+                partial.unlink(missing_ok=True)
+                continue
+            mode = "ab" if current_bytes else "wb"
+            with partial.open(mode) as handle:
+                while chunk := response.read(1024 * 1024):
+                    handle.write(chunk)
+        if partial.stat().st_size == expected_bytes:
+            return
+    observed = partial.stat().st_size if partial.exists() else 0
+    raise RuntimeError(
+        f"Download remained incomplete after resume attempts: {url} "
+        f"({observed}/{expected_bytes} bytes)"
+    )
+
+
 def download(month: Month, root: Path) -> dict[str, object]:
     destination = root / str(month.year) / f"{month.month:02d}" / month.filename
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -60,10 +101,7 @@ def download(month: Month, root: Path) -> dict[str, object]:
 
     if not valid_zip(destination):
         partial = destination.with_suffix(".zip.part")
-        request = urllib.request.Request(url, headers={"User-Agent": "flight-delay-ml-system/1.0"})
-        with urllib.request.urlopen(request, timeout=120) as response, partial.open("wb") as handle:
-            while chunk := response.read(1024 * 1024):
-                handle.write(chunk)
+        download_with_resume(url, partial, remote_size(url))
         if not valid_zip(partial):
             raise RuntimeError(f"Downloaded archive failed ZIP validation: {url}")
         partial.replace(destination)

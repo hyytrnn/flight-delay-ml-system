@@ -31,7 +31,14 @@ def main() -> int:
     frame = pl.read_parquet(args.data).with_columns(
         pl.col("flight_date").dt.strftime("%Y-%m").alias("year_month"),
         pl.col("scheduled_departure_local").dt.hour().alias("departure_hour"),
-        pl.col("distance").cut([500, 1_000, 2_000], labels=["short", "medium", "long", "very_long"]).alias("distance_bin"),
+        pl.when(pl.col("distance") <= 500)
+        .then(pl.lit("short"))
+        .when(pl.col("distance") <= 1_000)
+        .then(pl.lit("medium"))
+        .when(pl.col("distance") <= 2_000)
+        .then(pl.lit("long"))
+        .otherwise(pl.lit("very_long"))
+        .alias("distance_bin"),
     )
     args.figures.mkdir(parents=True, exist_ok=True)
     sns.set_theme(style="whitegrid")

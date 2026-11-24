@@ -9,7 +9,7 @@
 The real benchmark downloads these official Reporting Carrier archives:
 
 - 2023: January, April, July and October
-- 2024: January and October
+- 2024: January, July and October
 - 2025: January
 
 The months provide chronological and seasonal coverage while keeping a portfolio

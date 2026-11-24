@@ -5,7 +5,7 @@
 - Target: BTS `DepDel15`.
 - Decision time: T-24h.
 - Population: valid binary label, not cancelled, not diverted.
-- Data: seven official BTS Reporting Carrier monthly archives from 2023-2025.
+- Data: eight official BTS Reporting Carrier monthly archives from 2023-2025.
 - Sampling: deterministic monthly cap defined by `prepare_dataset.py`.
 - Selection: validation PR-AUC.
 - Calibration: Platt logistic mapping on the dedicated October 2024 partition.

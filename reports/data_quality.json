@@ -1,0 +1,234 @@
+{
+  "status": "executed_real",
+  "created_at_utc": "2026-11-24T07:25:08.237919+00:00",
+  "files": 8,
+  "raw_input_rows": 4638240,
+  "eligible_rows_before_sampling": 4528598,
+  "benchmark_rows_after_sampling": 480000,
+  "quarantine_sample_rows": 8000,
+  "label_coverage": 0.9763612922142881,
+  "file_reports": [
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:37.679345+00:00",
+      "input_rows": 538837,
+      "clean_rows": 527197,
+      "quarantine_rows": 11640,
+      "label_coverage": 0.9783979199646646,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 10295,
+        "diverted_excluded": 1345,
+        "invalid_crs_elapsed_time": 1,
+        "invalid_or_missing_label": 9982
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2023_1.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:41.620807+00:00",
+      "input_rows": 561441,
+      "clean_rows": 550249,
+      "quarantine_rows": 11192,
+      "label_coverage": 0.9800655812454024,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 9589,
+        "diverted_excluded": 1603,
+        "invalid_or_missing_label": 9311
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2023_4.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:45.894908+00:00",
+      "input_rows": 601866,
+      "clean_rows": 585058,
+      "quarantine_rows": 16808,
+      "label_coverage": 0.972073518025607,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 14606,
+        "diverted_excluded": 2202,
+        "invalid_or_missing_label": 13979
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2023_7.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:49.927327+00:00",
+      "input_rows": 598968,
+      "clean_rows": 596003,
+      "quarantine_rows": 2965,
+      "label_coverage": 0.9950498190220513,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 2140,
+        "diverted_excluded": 825,
+        "invalid_or_missing_label": 2016
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2023_10.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:53.690687+00:00",
+      "input_rows": 547271,
+      "clean_rows": 525370,
+      "quarantine_rows": 21901,
+      "label_coverage": 0.9599814351573535,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 20389,
+        "diverted_excluded": 1512,
+        "invalid_or_missing_label": 19858
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2024_1.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:24:58.862470+00:00",
+      "input_rows": 634613,
+      "clean_rows": 613938,
+      "quarantine_rows": 20675,
+      "label_coverage": 0.9674210897034886,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 18372,
+        "diverted_excluded": 2303,
+        "invalid_or_missing_label": 17857
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2024_7.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:25:03.442671+00:00",
+      "input_rows": 615497,
+      "clean_rows": 608514,
+      "quarantine_rows": 6983,
+      "label_coverage": 0.9886546969359721,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 6284,
+        "diverted_excluded": 699,
+        "invalid_or_missing_label": 6202
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2024_10.zip"
+    },
+    {
+      "status": "executed_real",
+      "run_kind": "real",
+      "created_at_utc": "2026-11-24T07:25:07.817763+00:00",
+      "input_rows": 539747,
+      "clean_rows": 522269,
+      "quarantine_rows": 17478,
+      "label_coverage": 0.9676181618424928,
+      "duplicate_rows": 0,
+      "ambiguous_time_rows": 0,
+      "quarantine_reason_counts": {
+        "cancelled_excluded": 16312,
+        "diverted_excluded": 1166,
+        "invalid_or_missing_label": 15923
+      },
+      "policy": {
+        "target": "dep_del15",
+        "prediction_horizon_hours": 24,
+        "cancelled": "excluded",
+        "diverted": "excluded",
+        "missing_label": "excluded",
+        "crs_dep_time_2400": "next_day_midnight",
+        "ambiguous_dst": "earliest_fold_and_flag",
+        "nonexistent_dst": "quarantine"
+      },
+      "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_1.zip"
+    }
+  ],
+  "sampling_policy": {
+    "max_clean_per_file": 60000,
+    "max_quarantine_per_file": 1000,
+    "seed": 42
+  }
+}
