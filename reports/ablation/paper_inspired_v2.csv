@@ -1,0 +1,12 @@
+experiment_id,hypothesis,baseline,primary_metric,status,evidence_path
+P0,V1 reproducibility on frozen artifacts,V1 historical,PR-AUC,HISTORICAL_REFERENCE,reports/baseline/v1_verified_metrics.json
+P1,Continuous months and static schedule features improve temporal stability,F0,mean temporal PR-AUC,NOT_EVALUATED,
+P2,Planned traffic load improves delay ranking,P1,delta mean temporal PR-AUC,NOT_EVALUATED,
+P3,Out-of-fold flow forecast improves delay ranking,P2,delta mean temporal PR-AUC,NOT_EVALUATED,
+P4,Dual-airport issued weather improves matched-sample ranking,flight-only matched sample,delta PR-AUC,NOT_EVALUATED,
+P5,Class weighting or resampling improves decision tradeoff,unweighted same model,PR-AUC and Brier,NOT_EVALUATED,
+P6,Optuna-tuned candidates improve stable temporal ranking,best untuned candidate,mean and worst-fold PR-AUC,NOT_EVALUATED,
+P7,Separated calibration improves probability quality,no calibration,Brier and logloss,NOT_EVALUATED,
+P8,Departure-delay magnitude provides useful auxiliary output,median baseline,MAE and RMSE,NOT_EVALUATED,
+P9,Grouped explanations are stable across folds,selected model,importance rank stability,NOT_EVALUATED,
+

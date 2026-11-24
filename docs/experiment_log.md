@@ -10,7 +10,9 @@
 - Selection: validation PR-AUC.
 - Calibration: Platt logistic mapping on the dedicated October 2024 partition.
 - Threshold: maximum F1 on the calibration partition.
-- Locked test: January and July 2025, evaluated only after model selection.
+- Locked test: January 2025, evaluated only after model selection. An earlier
+  documentation draft incorrectly listed January and July; the artifact metadata
+  confirms the actual period was 2025-01-01 through 2025-01-31.
 - Weather: not evaluated because a uniform issued-run archive is unavailable for
   the full benchmark window.
 

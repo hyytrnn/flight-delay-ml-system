@@ -1,0 +1,31 @@
+{
+  "captured_at_local_date": "2026-11-24",
+  "git_sha": "079e27e4a729e7828825b36040f7200b82935a59",
+  "branch": "feature/v2-research-eda-optuna",
+  "python": "3.11.9",
+  "operating_system": "Microsoft Windows 11 Pro 10.0.22621 build 22621",
+  "cpu": {
+    "name": "Intel(R) Core(TM) i7-8706G CPU @ 3.10GHz",
+    "cores": 4,
+    "logical_processors": 8
+  },
+  "ram_bytes": 16982061056,
+  "packages": {
+    "polars": "2.1.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.6",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.2.0",
+    "fastapi": "0.165.0",
+    "pydantic": "2.14.4",
+    "joblib": "1.6.0",
+    "pyarrow": "23.0.1",
+    "pytest": "9.0.1",
+    "ruff": "0.17.6"
+  },
+  "baseline_validation": {
+    "pytest": "28 passed",
+    "ruff": "all checks passed"
+  }
+}
+

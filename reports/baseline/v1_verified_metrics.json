@@ -1,0 +1,47 @@
+{
+  "status": "historical_reference_already_reviewed",
+  "source_commit": "079e27e4a729e7828825b36040f7200b82935a59",
+  "artifact_provenance_commit": "c83694ca61563e8cbde1d79971451ce08ba2c16e",
+  "target": "dep_del15",
+  "prediction_horizon_hours": 24,
+  "dataset": {
+    "raw_rows": 4638240,
+    "eligible_rows_before_sampling": 4528598,
+    "benchmark_rows": 480000,
+    "months": [
+      "2023-01",
+      "2023-04",
+      "2023-07",
+      "2023-10",
+      "2024-01",
+      "2024-07",
+      "2024-10",
+      "2025-01"
+    ]
+  },
+  "partitions": {
+    "train_rows": 240000,
+    "validation_rows": 120000,
+    "calibration_rows": 60000,
+    "historical_test_rows": 60000,
+    "historical_test_period": ["2025-01-01", "2025-01-31"]
+  },
+  "model_selection": {
+    "selected_model": "xgboost",
+    "validation_pr_auc": 0.3973724778483292,
+    "validation_positive_rate": 0.26165
+  },
+  "historical_test": {
+    "pr_auc": 0.22126958248083395,
+    "roc_auc": 0.5840685417368516,
+    "precision": 0.2108320478210567,
+    "recall": 0.7988857429902274,
+    "f1": 0.3336193908881134,
+    "brier": 0.14831352808835485,
+    "log_loss": 0.47079924787596034,
+    "threshold": 0.135,
+    "positive_rate": 0.18248333333333333
+  },
+  "v2_usage_policy": "regression_reference_only_not_model_selection_or_final_holdout"
+}
+
