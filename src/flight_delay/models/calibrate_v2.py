@@ -144,6 +144,44 @@ def threshold_sweep(
     return pd.DataFrame(rows)
 
 
+def _prepare_presorted_metric_index(
+    scores: np.ndarray, y_true: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+    """Pre-sort scores descending once so repeated weighted bootstraps need O(N) passes."""
+
+    order = np.argsort(-scores, kind="mergesort")
+    s_ord = scores[order]
+    y_ord = y_true[order].astype(float)
+    is_new = np.empty(len(s_ord), dtype=bool)
+    is_new[0] = True
+    if len(s_ord) > 1:
+        np.not_equal(s_ord[1:], s_ord[:-1], out=is_new[1:])
+    gid = np.cumsum(is_new) - 1
+    num_groups = int(gid[-1]) + 1
+    return order, s_ord, y_ord, gid, num_groups
+
+
+def _weighted_ranking_metrics(
+    weights_sorted: np.ndarray, y_ord: np.ndarray, gid: np.ndarray, num_groups: int
+) -> tuple[float, float] | None:
+    pos_g = np.bincount(gid, weights=y_ord * weights_sorted, minlength=num_groups)
+    tot_g = np.bincount(gid, weights=weights_sorted, minlength=num_groups)
+    mask = tot_g > 0
+    pg = pos_g[mask]
+    fg = tot_g[mask] - pg
+    tp = np.cumsum(pg)
+    fp = np.cumsum(fg)
+    total_pos = float(tp[-1]) if len(tp) else 0.0
+    total_neg = float(fp[-1]) if len(fp) else 0.0
+    if total_pos <= 0.0 or total_neg <= 0.0:
+        return None
+    prec = tp / (tp + fp)
+    ap = float(np.sum((pg / total_pos) * prec))
+    tp_prev = np.concatenate(([0.0], tp[:-1]))
+    roc = float(np.sum(fg * (tp_prev + 0.5 * pg)) / (total_pos * total_neg))
+    return ap, roc
+
+
 def calendar_block_bootstrap_ci(
     y_true: np.ndarray,
     scores: np.ndarray,
@@ -158,8 +196,13 @@ def calendar_block_bootstrap_ci(
     y = np.asarray(y_true, dtype=int)
     p = np.clip(np.asarray(scores, dtype=float), 1e-6, 1.0 - 1e-6)
     date_values = pd.to_datetime(dates).dt.date.to_numpy()
-    unique_days = np.unique(date_values)
-    day_indices = {day: np.where(date_values == day)[0] for day in unique_days}
+    _, day_id = np.unique(date_values, return_inverse=True)
+    n_days = int(day_id.max()) + 1 if len(day_id) else 0
+
+    order, s_ord, y_ord, gid, num_groups = _prepare_presorted_metric_index(p, y)
+    day_id_ord = day_id[order]
+    pred_ord = (s_ord >= threshold).astype(float)
+    sq_err_ord = (y_ord - s_ord) ** 2
 
     rng = np.random.default_rng(seed)
     metrics_samples: dict[str, list[float]] = {
@@ -170,17 +213,28 @@ def calendar_block_bootstrap_ci(
         "positive_rate": [],
     }
     for _ in range(n_bootstrap):
-        sampled_days = rng.choice(unique_days, size=len(unique_days), replace=True)
-        idx = np.concatenate([day_indices[d] for d in sampled_days])
-        yb = y[idx]
-        pb = p[idx]
-        if yb.min() == yb.max():
+        sampled_days = rng.integers(0, n_days, size=n_days)
+        day_w = np.bincount(sampled_days, minlength=n_days).astype(float)
+        w_ord = day_w[day_id_ord]
+        total_w = float(w_ord.sum())
+        if total_w <= 0.0:
             continue
-        metrics_samples["pr_auc"].append(float(average_precision_score(yb, pb)))
-        metrics_samples["roc_auc"].append(float(roc_auc_score(yb, pb)))
-        metrics_samples["brier"].append(float(brier_score_loss(yb, pb)))
-        metrics_samples["f1"].append(float(f1_score(yb, (pb >= threshold).astype(int), zero_division=0)))
-        metrics_samples["positive_rate"].append(float(yb.mean()))
+        ranked = _weighted_ranking_metrics(w_ord, y_ord, gid, num_groups)
+        if ranked is None:
+            continue
+        ap, roc = ranked
+        brier = float(np.dot(w_ord, sq_err_ord) / total_w)
+        tp_thr = float(np.sum(w_ord * y_ord * pred_ord))
+        pos_w = float(np.dot(w_ord, y_ord))
+        pred_w = float(np.dot(w_ord, pred_ord))
+        denom = pred_w + pos_w
+        f1 = (2.0 * tp_thr / denom) if denom > 0.0 else 0.0
+
+        metrics_samples["pr_auc"].append(ap)
+        metrics_samples["roc_auc"].append(roc)
+        metrics_samples["brier"].append(brier)
+        metrics_samples["f1"].append(f1)
+        metrics_samples["positive_rate"].append(pos_w / total_w)
 
     summary: dict[str, dict[str, float]] = {}
     for key, values in metrics_samples.items():
@@ -192,6 +246,74 @@ def calendar_block_bootstrap_ci(
             "std": float(arr.std()),
             "ci95_low": float(np.quantile(arr, 0.025)),
             "ci95_high": float(np.quantile(arr, 0.975)),
+            "n_boot": len(values),
+        }
+    return summary
+
+
+def paired_calendar_block_bootstrap(
+    y_true: np.ndarray,
+    scores_base: np.ndarray,
+    scores_cand: np.ndarray,
+    dates: pd.Series,
+    *,
+    n_bootstrap: int = 300,
+    seed: int = 42,
+) -> dict[str, dict[str, float]]:
+    """Compute paired block-bootstrap CIs for candidate - baseline over identical rows."""
+
+    y = np.asarray(y_true, dtype=int)
+    p_base = np.clip(np.asarray(scores_base, dtype=float), 1e-6, 1.0 - 1e-6)
+    p_cand = np.clip(np.asarray(scores_cand, dtype=float), 1e-6, 1.0 - 1e-6)
+    if not (len(y) == len(p_base) == len(p_cand) == len(dates)):
+        raise ValueError("y_true, scores_base, scores_cand, and dates must have equal length")
+
+    date_values = pd.to_datetime(dates).dt.date.to_numpy()
+    _, day_id = np.unique(date_values, return_inverse=True)
+    n_days = int(day_id.max()) + 1 if len(day_id) else 0
+
+    ord_b, s_b_ord, y_b_ord, gid_b, n_g_b = _prepare_presorted_metric_index(p_base, y)
+    ord_c, s_c_ord, y_c_ord, gid_c, n_g_c = _prepare_presorted_metric_index(p_cand, y)
+    day_b_ord = day_id[ord_b]
+    day_c_ord = day_id[ord_c]
+    sq_b_ord = (y_b_ord - s_b_ord) ** 2
+    sq_c_ord = (y_c_ord - s_c_ord) ** 2
+
+    rng = np.random.default_rng(seed)
+    deltas: dict[str, list[float]] = {
+        "delta_pr_auc": [],
+        "delta_roc_auc": [],
+        "delta_brier": [],
+    }
+    for _ in range(n_bootstrap):
+        sampled_days = rng.integers(0, n_days, size=n_days)
+        day_w = np.bincount(sampled_days, minlength=n_days).astype(float)
+        wb = day_w[day_b_ord]
+        wc = day_w[day_c_ord]
+        tot_w = float(wb.sum())
+        if tot_w <= 0.0:
+            continue
+        rb = _weighted_ranking_metrics(wb, y_b_ord, gid_b, n_g_b)
+        rc = _weighted_ranking_metrics(wc, y_c_ord, gid_c, n_g_c)
+        if rb is None or rc is None:
+            continue
+        brier_b = float(np.dot(wb, sq_b_ord) / tot_w)
+        brier_c = float(np.dot(wc, sq_c_ord) / tot_w)
+        deltas["delta_pr_auc"].append(rc[0] - rb[0])
+        deltas["delta_roc_auc"].append(rc[1] - rb[1])
+        deltas["delta_brier"].append(brier_c - brier_b)
+
+    summary: dict[str, dict[str, float]] = {}
+    for key, values in deltas.items():
+        if not values:
+            continue
+        arr = np.asarray(values, dtype=float)
+        summary[key] = {
+            "mean": float(arr.mean()),
+            "std": float(arr.std()),
+            "ci95_low": float(np.quantile(arr, 0.025)),
+            "ci95_high": float(np.quantile(arr, 0.975)),
+            "prob_positive": float(np.mean(arr > 0.0)),
             "n_boot": len(values),
         }
     return summary

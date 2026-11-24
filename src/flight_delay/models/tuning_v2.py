@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import date
@@ -50,6 +51,7 @@ AllModelName = Literal[
     "catboost",
 ]
 ClassWeightMode = Literal["none", "balanced"]
+EvalStrategy = Literal["probe_only", "refit_full_train"]
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,11 @@ class FoldResult:
     brier: float
     log_loss: float
     fit_seconds: float
+    rows_fit_actual: int = 0
+    rows_inner_train: int = 0
+    rows_inner_val: int = 0
+    best_iteration: int | None = None
+    eval_strategy: str = "refit_full_train"
 
 
 @dataclass
@@ -74,9 +81,14 @@ class _EncodedFold:
     y_in_tr: np.ndarray
     x_in_va: Any
     y_in_va: np.ndarray
-    x_val: Any
+    x_val_inner: Any
+    x_full_tr: Any
+    y_full_tr: np.ndarray
+    x_val_full: Any
     y_val: np.ndarray
+    dates_val: np.ndarray
     pos_weight_in: float
+    pos_weight_full: float
 
 
 def load_splits(path: Path) -> list[TemporalFold]:
@@ -278,6 +290,11 @@ def _fit_predict_baseline(
     return pipeline.predict_proba(x_validation)[:, 1], elapsed
 
 
+def _bounded_best_iterations(orig_iters: int, detected_iters: int) -> int:
+    floor = min(50, max(1, orig_iters))
+    return max(floor, min(orig_iters, detected_iters))
+
+
 def _fit_predict_onehot(
     model_name: Literal["xgboost", "lightgbm"],
     params: dict[str, Any],
@@ -291,17 +308,28 @@ def _fit_predict_onehot(
     dates_train: pd.Series | None = None,
     class_weight_mode: ClassWeightMode = "none",
     early_stopping_rounds: int = 50,
-) -> tuple[np.ndarray, float]:
+    eval_strategy: EvalStrategy = "refit_full_train",
+    return_meta: bool = False,
+) -> Any:
     pos_weight = _pos_weight(y_train, class_weight_mode)
     run_params = dict(params)
     inner_split = (
         _inner_chronological_split(dates_train) if dates_train is not None else None
     )
+    meta: dict[str, Any] = {
+        "rows_fit_actual": len(x_train),
+        "rows_inner_train": len(x_train),
+        "rows_inner_val": 0,
+        "best_iteration": None,
+        "eval_strategy": eval_strategy if inner_split is not None else "direct_full_fit",
+    }
 
     started = time.perf_counter()
     if inner_split is not None and int(run_params.get("n_estimators", 0)) > early_stopping_rounds:
         in_tr_mask, in_va_mask = inner_split
-        inner_pre = (
+        meta["rows_inner_train"] = int(in_tr_mask.sum())
+        meta["rows_inner_val"] = int(in_va_mask.sum())
+        inner_pre: Any = (
             _xgb_preprocessor(numeric, categorical)
             if model_name == "xgboost"
             else _onehot_preprocessor(numeric, categorical)
@@ -324,6 +352,8 @@ def _fit_predict_onehot(
                 early_stopping_rounds=early_stopping_rounds,
             )
             probe.fit(x_in_tr, y_in_tr, eval_set=[(x_in_va, y_in_va)], verbose=False)
+            raw_best = getattr(probe, "best_iteration", None)
+            detected = int(raw_best) + 1 if raw_best is not None else int(run_params["n_estimators"])
         else:
             probe = LGBMClassifier(
                 **run_params,
@@ -340,9 +370,18 @@ def _fit_predict_onehot(
                 eval_metric="average_precision",
                 callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)],
             )
-        elapsed = time.perf_counter() - started
-        x_val_tx = inner_pre.transform(x_validation)
-        return probe.predict_proba(x_val_tx)[:, 1], elapsed
+            raw_best = getattr(probe, "best_iteration_", None)
+            detected = int(raw_best) if raw_best is not None and int(raw_best) > 0 else int(run_params["n_estimators"])
+
+        best_iters = _bounded_best_iterations(int(run_params["n_estimators"]), detected)
+        meta["best_iteration"] = best_iters
+        if eval_strategy == "probe_only":
+            elapsed = time.perf_counter() - started
+            meta["rows_fit_actual"] = int(in_tr_mask.sum())
+            x_val_tx = inner_pre.transform(x_validation)
+            preds = probe.predict_proba(x_val_tx)[:, 1]
+            return (preds, elapsed, meta) if return_meta else (preds, elapsed)
+        run_params["n_estimators"] = best_iters
 
     if model_name == "xgboost":
         estimator = XGBClassifier(
@@ -368,7 +407,8 @@ def _fit_predict_onehot(
     pipeline = Pipeline([("preprocessor", pre), ("classifier", estimator)])
     pipeline.fit(x_train, y_train)
     elapsed = time.perf_counter() - started
-    return pipeline.predict_proba(x_validation)[:, 1], elapsed
+    preds = pipeline.predict_proba(x_validation)[:, 1]
+    return (preds, elapsed, meta) if return_meta else (preds, elapsed)
 
 
 def _fit_predict_catboost(
@@ -382,7 +422,9 @@ def _fit_predict_catboost(
     dates_train: pd.Series | None = None,
     class_weight_mode: ClassWeightMode = "none",
     early_stopping_rounds: int = 50,
-) -> tuple[np.ndarray, float]:
+    eval_strategy: EvalStrategy = "refit_full_train",
+    return_meta: bool = False,
+) -> Any:
     train = x_train.copy()
     validation = x_validation.copy()
     for column in categorical:
@@ -394,10 +436,19 @@ def _fit_predict_catboost(
     inner_split = (
         _inner_chronological_split(dates_train) if dates_train is not None else None
     )
+    meta: dict[str, Any] = {
+        "rows_fit_actual": len(train),
+        "rows_inner_train": len(train),
+        "rows_inner_val": 0,
+        "best_iteration": None,
+        "eval_strategy": eval_strategy if inner_split is not None else "direct_full_fit",
+    }
 
     started = time.perf_counter()
     if inner_split is not None and int(run_params.get("iterations", 0)) > early_stopping_rounds:
         in_tr_mask, in_va_mask = inner_split
+        meta["rows_inner_train"] = int(in_tr_mask.sum())
+        meta["rows_inner_val"] = int(in_va_mask.sum())
         probe = CatBoostClassifier(
             **run_params,
             cat_features=categorical,
@@ -415,8 +466,20 @@ def _fit_predict_catboost(
             y_train[in_tr_mask],
             eval_set=(train.loc[in_va_mask], y_train[in_va_mask]),
         )
-        elapsed = time.perf_counter() - started
-        return probe.predict_proba(validation)[:, 1], elapsed
+        raw_best = probe.get_best_iteration()
+        detected = (
+            int(raw_best) + 1
+            if raw_best is not None and int(raw_best) >= 0
+            else int(run_params["iterations"])
+        )
+        best_iters = _bounded_best_iterations(int(run_params["iterations"]), detected)
+        meta["best_iteration"] = best_iters
+        if eval_strategy == "probe_only":
+            elapsed = time.perf_counter() - started
+            meta["rows_fit_actual"] = int(in_tr_mask.sum())
+            preds = probe.predict_proba(validation)[:, 1]
+            return (preds, elapsed, meta) if return_meta else (preds, elapsed)
+        run_params["iterations"] = best_iters
 
     estimator = CatBoostClassifier(
         **run_params,
@@ -431,10 +494,36 @@ def _fit_predict_catboost(
     )
     estimator.fit(train, y_train)
     elapsed = time.perf_counter() - started
-    return estimator.predict_proba(validation)[:, 1], elapsed
+    preds = estimator.predict_proba(validation)[:, 1]
+    return (preds, elapsed, meta) if return_meta else (preds, elapsed)
 
 
-def evaluate_params(
+def cleanup_stale_running_trials(storage: str, study_name: str | None = None) -> int:
+    """Mark any orphaned Optuna RUNNING trials in SQLite as FAIL before resuming."""
+
+    if not storage.startswith("sqlite:///"):
+        return 0
+    db_path = Path(storage.removeprefix("sqlite:///"))
+    if not db_path.exists():
+        return 0
+    with sqlite3.connect(db_path) as conn:
+        if study_name is None:
+            cur = conn.execute("UPDATE trials SET state = 'FAIL' WHERE state = 'RUNNING'")
+        else:
+            cur = conn.execute(
+                """
+                UPDATE trials
+                SET state = 'FAIL'
+                WHERE state = 'RUNNING'
+                  AND study_id IN (SELECT study_id FROM studies WHERE study_name = ?)
+                """,
+                (study_name,),
+            )
+        conn.commit()
+        return int(cur.rowcount)
+
+
+def evaluate_params_with_oof(
     *,
     model_name: AllModelName,
     params: dict[str, Any],
@@ -446,10 +535,17 @@ def evaluate_params(
     seed: int,
     class_weight_mode: ClassWeightMode = "none",
     use_inner_early_stopping: bool = True,
-) -> list[FoldResult]:
-    numeric, categorical = v2_feature_columns(feature_group)
+    eval_strategy: EvalStrategy = "refit_full_train",
+    extra_numeric: list[str] | None = None,
+    extra_categorical: list[str] | None = None,
+    trial: optuna.Trial | None = None,
+) -> tuple[list[FoldResult], pd.DataFrame]:
+    base_num, base_cat = v2_feature_columns(feature_group)
+    numeric = list(base_num) + list(extra_numeric or [])
+    categorical = list(base_cat) + list(extra_categorical or [])
     results: list[FoldResult] = []
-    for fold in folds:
+    oof_frames: list[pd.DataFrame] = []
+    for fold_idx, fold in enumerate(folds):
         fold.validate()
         train_mask = (dates >= pd.Timestamp(fold.train_start)) & (
             dates < pd.Timestamp(fold.train_end_exclusive)
@@ -462,6 +558,13 @@ def evaluate_params(
         x_train, x_validation = features.loc[train_mask], features.loc[validation_mask]
         y_train, y_validation = labels[train_mask], labels[validation_mask]
         dates_train = dates.loc[train_mask] if use_inner_early_stopping else None
+        meta: dict[str, Any] = {
+            "rows_fit_actual": int(train_mask.sum()),
+            "rows_inner_train": int(train_mask.sum()),
+            "rows_inner_val": 0,
+            "best_iteration": None,
+            "eval_strategy": "baseline_direct",
+        }
 
         if model_name in {"dummy_prior", "logistic_regression", "hist_gradient_boosting"}:
             scores, fit_seconds = _fit_predict_baseline(
@@ -476,7 +579,7 @@ def evaluate_params(
                 class_weight_mode=class_weight_mode,
             )
         elif model_name == "catboost":
-            scores, fit_seconds = _fit_predict_catboost(
+            scores, fit_seconds, meta = _fit_predict_catboost(
                 params,
                 categorical,
                 x_train,
@@ -485,9 +588,11 @@ def evaluate_params(
                 seed,
                 dates_train=dates_train,
                 class_weight_mode=class_weight_mode,
+                eval_strategy=eval_strategy,
+                return_meta=True,
             )
         else:
-            scores, fit_seconds = _fit_predict_onehot(
+            scores, fit_seconds, meta = _fit_predict_onehot(
                 model_name,
                 params,
                 numeric,
@@ -498,21 +603,78 @@ def evaluate_params(
                 seed,
                 dates_train=dates_train,
                 class_weight_mode=class_weight_mode,
+                eval_strategy=eval_strategy,
+                return_meta=True,
             )
         clipped = np.clip(scores, 1e-6, 1.0 - 1e-6)
+        pr_auc = float(average_precision_score(y_validation, scores))
         results.append(
             FoldResult(
                 fold=fold.name,
                 rows_train=int(train_mask.sum()),
                 rows_validation=int(validation_mask.sum()),
                 positive_rate_validation=float(y_validation.mean()),
-                pr_auc=float(average_precision_score(y_validation, scores)),
+                pr_auc=pr_auc,
                 roc_auc=float(roc_auc_score(y_validation, scores)),
                 brier=float(brier_score_loss(y_validation, scores)),
                 log_loss=float(log_loss(y_validation, np.column_stack([1.0 - clipped, clipped]))),
                 fit_seconds=fit_seconds,
+                rows_fit_actual=int(meta["rows_fit_actual"]),
+                rows_inner_train=int(meta["rows_inner_train"]),
+                rows_inner_val=int(meta["rows_inner_val"]),
+                best_iteration=meta["best_iteration"],
+                eval_strategy=str(meta["eval_strategy"]),
             )
         )
+        oof_frames.append(
+            pd.DataFrame(
+                {
+                    "fold": fold.name,
+                    "flight_date": pd.to_datetime(dates.loc[validation_mask]).to_numpy(),
+                    "y_true": y_validation.astype(int),
+                    "y_prob": scores.astype(float),
+                }
+            )
+        )
+        if trial is not None:
+            trial.report(float(np.mean([r.pr_auc for r in results])), step=fold_idx)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+    oof_df = pd.concat(oof_frames, ignore_index=True) if oof_frames else pd.DataFrame()
+    return results, oof_df
+
+
+def evaluate_params(
+    *,
+    model_name: AllModelName,
+    params: dict[str, Any],
+    features: pd.DataFrame,
+    labels: np.ndarray,
+    dates: pd.Series,
+    folds: list[TemporalFold],
+    feature_group: FeatureGroup,
+    seed: int,
+    class_weight_mode: ClassWeightMode = "none",
+    use_inner_early_stopping: bool = True,
+    eval_strategy: EvalStrategy = "refit_full_train",
+    extra_numeric: list[str] | None = None,
+    extra_categorical: list[str] | None = None,
+) -> list[FoldResult]:
+    results, _ = evaluate_params_with_oof(
+        model_name=model_name,
+        params=params,
+        features=features,
+        labels=labels,
+        dates=dates,
+        folds=folds,
+        feature_group=feature_group,
+        seed=seed,
+        class_weight_mode=class_weight_mode,
+        use_inner_early_stopping=use_inner_early_stopping,
+        eval_strategy=eval_strategy,
+        extra_numeric=extra_numeric,
+        extra_categorical=extra_categorical,
+    )
     return results
 
 
@@ -552,6 +714,7 @@ def _prepare_encoded_folds(
     folds: list[TemporalFold],
     feature_group: FeatureGroup,
     class_weight_mode: ClassWeightMode,
+    include_full_refit: bool = True,
 ) -> list[_EncodedFold]:
     numeric, categorical = v2_feature_columns(feature_group)
     encoded: list[_EncodedFold] = []
@@ -571,16 +734,29 @@ def _prepare_encoded_folds(
             in_va_mask = np.ones(len(x_train), dtype=bool)
         else:
             in_tr_mask, in_va_mask = split
-        pre: Any = (
+        pre_inner: Any = (
             _xgb_preprocessor(numeric, categorical)
             if model_name == "xgboost"
             else _onehot_preprocessor(numeric, categorical)
         )
-        x_in_tr = pre.fit_transform(x_train.loc[in_tr_mask])
-        x_in_va = pre.transform(x_train.loc[in_va_mask])
-        x_val_tx = pre.transform(x_val)
+        x_in_tr = pre_inner.fit_transform(x_train.loc[in_tr_mask])
+        x_in_va = pre_inner.transform(x_train.loc[in_va_mask])
+        x_val_inner = pre_inner.transform(x_val)
         y_in_tr = y_train[in_tr_mask]
         y_in_va = y_train[in_va_mask]
+
+        if include_full_refit:
+            pre_full: Any = (
+                _xgb_preprocessor(numeric, categorical)
+                if model_name == "xgboost"
+                else _onehot_preprocessor(numeric, categorical)
+            )
+            x_full_tr = pre_full.fit_transform(x_train)
+            x_val_full = pre_full.transform(x_val)
+        else:
+            x_full_tr = x_in_tr
+            x_val_full = x_val_inner
+
         encoded.append(
             _EncodedFold(
                 name=fold.name,
@@ -590,9 +766,14 @@ def _prepare_encoded_folds(
                 y_in_tr=y_in_tr,
                 x_in_va=x_in_va,
                 y_in_va=y_in_va,
-                x_val=x_val_tx,
+                x_val_inner=x_val_inner,
+                x_full_tr=x_full_tr,
+                y_full_tr=y_train,
+                x_val_full=x_val_full,
                 y_val=y_val,
+                dates_val=pd.to_datetime(dates.loc[validation_mask]).to_numpy(),
                 pos_weight_in=_pos_weight(y_in_tr, class_weight_mode),
+                pos_weight_full=_pos_weight(y_train, class_weight_mode),
             )
         )
     return encoded
@@ -605,12 +786,16 @@ def _evaluate_encoded_folds(
     encoded_folds: list[_EncodedFold],
     seed: int,
     early_stopping_rounds: int = 40,
-) -> list[FoldResult]:
+    eval_strategy: EvalStrategy = "refit_full_train",
+    trial: optuna.Trial | None = None,
+) -> tuple[list[FoldResult], pd.DataFrame]:
     results: list[FoldResult] = []
-    for ef in encoded_folds:
+    oof_frames: list[pd.DataFrame] = []
+    for fold_idx, ef in enumerate(encoded_folds):
         started = time.perf_counter()
+        orig_n = int(params.get("n_estimators", 300))
         if model_name == "xgboost":
-            est = XGBClassifier(
+            probe = XGBClassifier(
                 **params,
                 scale_pos_weight=ef.pos_weight_in,
                 random_state=seed,
@@ -621,16 +806,18 @@ def _evaluate_encoded_folds(
                 eval_metric="logloss",
                 early_stopping_rounds=early_stopping_rounds,
             )
-            est.fit(ef.x_in_tr, ef.y_in_tr, eval_set=[(ef.x_in_va, ef.y_in_va)], verbose=False)
+            probe.fit(ef.x_in_tr, ef.y_in_tr, eval_set=[(ef.x_in_va, ef.y_in_va)], verbose=False)
+            raw_best = getattr(probe, "best_iteration", None)
+            detected = int(raw_best) + 1 if raw_best is not None else orig_n
         else:
-            est = LGBMClassifier(
+            probe = LGBMClassifier(
                 **params,
                 scale_pos_weight=ef.pos_weight_in,
                 random_state=seed,
                 n_jobs=-1,
                 verbosity=-1,
             )
-            est.fit(
+            probe.fit(
                 ef.x_in_tr,
                 ef.y_in_tr,
                 eval_X=ef.x_in_va,
@@ -638,23 +825,76 @@ def _evaluate_encoded_folds(
                 eval_metric="average_precision",
                 callbacks=[lgb.early_stopping(early_stopping_rounds, verbose=False)],
             )
-        fit_seconds = time.perf_counter() - started
-        scores = est.predict_proba(ef.x_val)[:, 1]
+            raw_best = getattr(probe, "best_iteration_", None)
+            detected = int(raw_best) if raw_best is not None and int(raw_best) > 0 else orig_n
+
+        best_iters = _bounded_best_iterations(orig_n, detected)
+        if eval_strategy == "probe_only":
+            fit_seconds = time.perf_counter() - started
+            scores = probe.predict_proba(ef.x_val_inner)[:, 1]
+            rows_fit_actual = len(ef.y_in_tr)
+        else:
+            refit_params = {**params, "n_estimators": best_iters}
+            if model_name == "xgboost":
+                est = XGBClassifier(
+                    **refit_params,
+                    scale_pos_weight=ef.pos_weight_full,
+                    random_state=seed,
+                    n_jobs=-1,
+                    tree_method="hist",
+                    enable_categorical=True,
+                    max_cat_to_onehot=16,
+                    eval_metric="logloss",
+                )
+            else:
+                est = LGBMClassifier(
+                    **refit_params,
+                    scale_pos_weight=ef.pos_weight_full,
+                    random_state=seed,
+                    n_jobs=-1,
+                    verbosity=-1,
+                )
+            est.fit(ef.x_full_tr, ef.y_full_tr)
+            fit_seconds = time.perf_counter() - started
+            scores = est.predict_proba(ef.x_val_full)[:, 1]
+            rows_fit_actual = int(ef.rows_train)
+
         clipped = np.clip(scores, 1e-6, 1.0 - 1e-6)
+        pr_auc = float(average_precision_score(ef.y_val, scores))
         results.append(
             FoldResult(
                 fold=ef.name,
                 rows_train=ef.rows_train,
                 rows_validation=ef.rows_validation,
                 positive_rate_validation=float(ef.y_val.mean()),
-                pr_auc=float(average_precision_score(ef.y_val, scores)),
+                pr_auc=pr_auc,
                 roc_auc=float(roc_auc_score(ef.y_val, scores)),
                 brier=float(brier_score_loss(ef.y_val, scores)),
                 log_loss=float(log_loss(ef.y_val, np.column_stack([1.0 - clipped, clipped]))),
                 fit_seconds=fit_seconds,
+                rows_fit_actual=rows_fit_actual,
+                rows_inner_train=len(ef.y_in_tr),
+                rows_inner_val=len(ef.y_in_va),
+                best_iteration=best_iters,
+                eval_strategy=eval_strategy,
             )
         )
-    return results
+        oof_frames.append(
+            pd.DataFrame(
+                {
+                    "fold": ef.name,
+                    "flight_date": ef.dates_val,
+                    "y_true": ef.y_val.astype(int),
+                    "y_prob": scores.astype(float),
+                }
+            )
+        )
+        if trial is not None:
+            trial.report(float(np.mean([r.pr_auc for r in results])), step=fold_idx)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+    oof_df = pd.concat(oof_frames, ignore_index=True) if oof_frames else pd.DataFrame()
+    return results, oof_df
 
 
 def make_objective(
@@ -668,18 +908,21 @@ def make_objective(
     seed: int,
     class_weight_mode: ClassWeightMode = "none",
     encoded_folds: list[_EncodedFold] | None = None,
+    eval_strategy: EvalStrategy = "refit_full_train",
 ):
     def objective(trial: optuna.Trial) -> float:
         params = suggest_params(trial, model_name)
         if encoded_folds is not None and model_name in {"xgboost", "lightgbm"}:
-            results = _evaluate_encoded_folds(
+            results, _ = _evaluate_encoded_folds(
                 model_name=model_name,
                 params=params,
                 encoded_folds=encoded_folds,
                 seed=seed,
+                eval_strategy=eval_strategy,
+                trial=trial,
             )
         else:
-            results = evaluate_params(
+            results, _ = evaluate_params_with_oof(
                 model_name=model_name,
                 params=params,
                 features=features,
@@ -690,6 +933,8 @@ def make_objective(
                 seed=seed,
                 class_weight_mode=class_weight_mode,
                 use_inner_early_stopping=True,
+                eval_strategy=eval_strategy,
+                trial=trial,
             )
         scores = [result.pr_auc for result in results]
         trial.set_user_attr("pr_auc_by_fold", scores)
@@ -699,6 +944,8 @@ def make_objective(
         trial.set_user_attr("mean_roc_auc", float(np.mean([r.roc_auc for r in results])))
         trial.set_user_attr("mean_brier", float(np.mean([r.brier for r in results])))
         trial.set_user_attr("mean_log_loss", float(np.mean([r.log_loss for r in results])))
+        trial.set_user_attr("mean_fit_seconds", float(np.mean([r.fit_seconds for r in results])))
+        trial.set_user_attr("eval_strategy", eval_strategy)
         trial.set_user_attr("fold_results", [result.__dict__ for result in results])
         return float(np.mean(scores))
 
@@ -716,10 +963,15 @@ def run_study(
     timeout: int,
     seed: int,
     class_weight_mode: ClassWeightMode = "none",
+    study_name_prefix: str = "v2_1",
+    eval_strategy: EvalStrategy = "refit_full_train",
+    use_pruner: bool = True,
 ) -> optuna.Study:
     features = build_v2_feature_frame(frame, feature_group)
     labels = frame.get_column("dep_del15").to_numpy().astype(int)
     dates = pd.to_datetime(frame.get_column("flight_date").to_pandas())
+    study_name = f"{study_name_prefix}_{model_name}_{feature_group}_{class_weight_mode}_{eval_strategy}"
+    cleanup_stale_running_trials(storage, study_name)
     encoded_folds = (
         _prepare_encoded_folds(
             model_name=model_name,
@@ -729,16 +981,23 @@ def run_study(
             folds=folds,
             feature_group=feature_group,
             class_weight_mode=class_weight_mode,
+            include_full_refit=(eval_strategy == "refit_full_train"),
         )
         if model_name in {"xgboost", "lightgbm"}
         else None
     )
     sampler = optuna.samplers.TPESampler(seed=seed)
+    pruner: optuna.pruners.BasePruner = (
+        optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=2)
+        if use_pruner
+        else optuna.pruners.NopPruner()
+    )
     study = optuna.create_study(
-        study_name=f"v2_{model_name}_{feature_group}_{class_weight_mode}",
+        study_name=study_name,
         storage=storage,
         direction="maximize",
         sampler=sampler,
+        pruner=pruner,
         load_if_exists=True,
     )
     study.optimize(
@@ -752,6 +1011,7 @@ def run_study(
             seed=seed,
             class_weight_mode=class_weight_mode,
             encoded_folds=encoded_folds,
+            eval_strategy=eval_strategy,
         ),
         n_trials=trials,
         timeout=timeout,
@@ -762,23 +1022,28 @@ def run_study(
 def export_study(study: optuna.Study, output_root: Path, model_name: str) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
     study.trials_dataframe().to_csv(output_root / f"{model_name}_trials.csv", index=False)
-    (output_root / f"{model_name}_best_params.yaml").write_text(
-        yaml.safe_dump(study.best_params, sort_keys=True), encoding="utf-8"
-    )
-    (output_root / f"{model_name}_best_trial.json").write_text(
-        json.dumps(
-            {
-                "number": study.best_trial.number,
-                "value": study.best_value,
-                "params": study.best_params,
-                "user_attrs": study.best_trial.user_attrs,
-            },
-            indent=2,
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
     completed = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+    if completed:
+        (output_root / f"{model_name}_best_params.yaml").write_text(
+            yaml.safe_dump(study.best_params, sort_keys=True), encoding="utf-8"
+        )
+        (output_root / f"{model_name}_best_trial.json").write_text(
+            json.dumps(
+                {
+                    "number": study.best_trial.number,
+                    "value": study.best_value,
+                    "params": study.best_params,
+                    "user_attrs": study.best_trial.user_attrs,
+                    "complete_trials": len(completed),
+                    "pruned_trials": sum(
+                        t.state == optuna.trial.TrialState.PRUNED for t in study.trials
+                    ),
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
     if len(completed) >= 2:
         try:
             importances = optuna.importance.get_param_importances(study)

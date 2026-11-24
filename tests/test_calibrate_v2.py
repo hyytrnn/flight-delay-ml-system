@@ -9,6 +9,7 @@ from flight_delay.models.calibrate_v2 import (
     evaluate_binary_metrics,
     expected_calibration_error,
     fit_calibrator,
+    paired_calendar_block_bootstrap,
     threshold_sweep,
 )
 
@@ -39,3 +40,12 @@ def test_threshold_sweep_and_block_bootstrap_ci() -> None:
     assert "pr_auc" in ci
     assert ci["pr_auc"]["ci95_low"] <= ci["pr_auc"]["mean"] <= ci["pr_auc"]["ci95_high"]
     assert ci["pr_auc"]["n_boot"] == pytest.approx(40, abs=5)
+
+    same = paired_calendar_block_bootstrap(y, scores, scores, dates, n_bootstrap=30, seed=7)
+    assert same["delta_pr_auc"]["mean"] == pytest.approx(0.0)
+    assert same["delta_brier"]["mean"] == pytest.approx(0.0)
+
+    worse = np.clip(1.0 - scores, 1e-4, 1.0 - 1e-4)
+    better = paired_calendar_block_bootstrap(y, worse, scores, dates, n_bootstrap=30, seed=7)
+    assert better["delta_pr_auc"]["ci95_low"] > 0.0
+    assert better["delta_brier"]["ci95_high"] < 0.0
