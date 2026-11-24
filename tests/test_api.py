@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
 
+import httpx
 import numpy as np
 import pandas as pd
-from fastapi.testclient import TestClient
+import pytest
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 
@@ -49,10 +50,10 @@ def make_bundle(path) -> None:
     save_bundle(bundle, path)
 
 
-def test_api_predict_and_health(tmp_path) -> None:
+@pytest.mark.asyncio
+async def test_api_predict_and_health(tmp_path) -> None:
     artifact = tmp_path / "bundle.joblib"
     make_bundle(artifact)
-    client = TestClient(create_app(artifact))
     departure = datetime(2027, 2, 10, 8, 30, tzinfo=timezone(timedelta(hours=-5)))
     payload = {
         "airline": "AA",
@@ -61,32 +62,38 @@ def test_api_predict_and_health(tmp_path) -> None:
         "scheduled_departure": departure.isoformat(),
         "prediction_at": (departure - timedelta(hours=24)).isoformat(),
     }
-    assert client.get("/health").status_code == 200
-    response = client.post("/predict", json=payload)
+    transport = httpx.ASGITransport(app=create_app(artifact))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.get("/health")).status_code == 200
+        response = await client.post("/predict", json=payload)
     assert response.status_code == 200
     assert 0 <= response.json()["delay_probability"] <= 1
     assert response.json()["weather_status"] == "not_used_flight_only_model"
 
 
-def test_api_rejects_wrong_prediction_horizon(tmp_path) -> None:
+@pytest.mark.asyncio
+async def test_api_rejects_wrong_prediction_horizon(tmp_path) -> None:
     artifact = tmp_path / "bundle.joblib"
     make_bundle(artifact)
-    client = TestClient(create_app(artifact))
     departure = datetime(2027, 2, 10, 8, 30, tzinfo=UTC)
-    response = client.post(
-        "/predict",
-        json={
-            "airline": "AA",
-            "origin": "JFK",
-            "destination": "LAX",
-            "scheduled_departure": departure.isoformat(),
-            "prediction_at": (departure - timedelta(hours=2)).isoformat(),
-        },
-    )
+    transport = httpx.ASGITransport(app=create_app(artifact))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/predict",
+            json={
+                "airline": "AA",
+                "origin": "JFK",
+                "destination": "LAX",
+                "scheduled_departure": departure.isoformat(),
+                "prediction_at": (departure - timedelta(hours=2)).isoformat(),
+            },
+        )
     assert response.status_code == 422
 
 
-def test_health_is_not_ready_when_model_missing(tmp_path) -> None:
-    client = TestClient(create_app(tmp_path / "missing.joblib"))
-    assert client.get("/health").status_code == 503
+@pytest.mark.asyncio
+async def test_health_is_not_ready_when_model_missing(tmp_path) -> None:
+    transport = httpx.ASGITransport(app=create_app(tmp_path / "missing.joblib"))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.get("/health")).status_code == 503
 

@@ -22,3 +22,7 @@ The image runs as a non-root user and contains the trusted model artifact built 
 this repository. Raw BTS data and local reports are excluded from the build
 context. The API returns HTTP 503 when the artifact cannot be loaded.
 
+Docker was not installed on the Windows development machine. The repository's
+GitHub Actions workflow performs the authoritative Docker build on an Ubuntu
+runner after push.
+

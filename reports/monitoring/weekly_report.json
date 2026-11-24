@@ -1,0 +1,12 @@
+{
+  "created_at_utc": "2026-11-24T07:29:03.724644+00:00",
+  "current_positive_rate": 0.18248333333333333,
+  "current_rows": 60000,
+  "feature_psi": {
+    "crs_elapsed_time": 0.017543358101598804,
+    "distance": 0.0030152123290823718
+  },
+  "interpretation": "Data drift is not proof of performance drift; labels are required.",
+  "reference_positive_rate": 0.219325,
+  "reference_rows": 240000
+}

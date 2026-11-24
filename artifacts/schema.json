@@ -1,0 +1,29 @@
+{
+  "schema_version": "t24-v1",
+  "target": "dep_del15",
+  "prediction_horizon_hours": 24,
+  "request_fields": {
+    "airline": "uppercase carrier code",
+    "origin": "three-letter IATA code",
+    "destination": "three-letter IATA code",
+    "scheduled_departure": "timezone-aware ISO 8601 datetime",
+    "prediction_at": "timezone-aware ISO 8601 datetime exactly T-24h"
+  },
+  "model_features": [
+    "reporting_airline",
+    "origin",
+    "dest",
+    "distance",
+    "crs_elapsed_time",
+    "dep_hour_sin",
+    "dep_hour_cos",
+    "weekday_sin",
+    "weekday_cos",
+    "month_sin",
+    "month_cos",
+    "is_weekend"
+  ],
+  "unknown_route_policy": "global training medians with explicit route_status",
+  "weather_policy": "not used by flight-only-v1.0.0"
+}
+

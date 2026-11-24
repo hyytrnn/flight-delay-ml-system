@@ -1,0 +1,46 @@
+{
+  "code_commit": "c83694ca61563e8cbde1d79971451ce08ba2c16e",
+  "created_at_utc": "2026-11-24T07:28:41.027806+00:00",
+  "data_sha256": "78d91b86fde11c597ccf7fc71e362a344e4a538058a7d8133c13fbce52c844e5",
+  "feature_columns": [
+    "reporting_airline",
+    "origin",
+    "dest",
+    "distance",
+    "crs_elapsed_time",
+    "dep_hour_sin",
+    "dep_hour_cos",
+    "weekday_sin",
+    "weekday_cos",
+    "month_sin",
+    "month_cos",
+    "is_weekend"
+  ],
+  "feature_contract_version": "t24-v1",
+  "model_version": "flight-only-v1.0.0",
+  "partition_rows": {
+    "calibration": 60000,
+    "test": 60000,
+    "train": 240000,
+    "validation": 120000
+  },
+  "prediction_horizon_hours": 24,
+  "selected_model": "xgboost",
+  "target": "dep_del15",
+  "test_metrics": {
+    "brier": 0.14831352808835485,
+    "f1": 0.3336193908881134,
+    "log_loss": 0.47079924787596034,
+    "period_end": "2025-01-31",
+    "period_start": "2025-01-01",
+    "positive_rate": 0.18248333333333333,
+    "pr_auc": 0.22126958248083395,
+    "precision": 0.2108320478210567,
+    "recall": 0.7988857429902274,
+    "roc_auc": 0.5840685417368516,
+    "rows": 60000,
+    "selected_model": "xgboost",
+    "threshold": 0.135
+  },
+  "weather_policy": "not_used_offline_no_asof_coverage_for_full_2023_2025_window"
+}

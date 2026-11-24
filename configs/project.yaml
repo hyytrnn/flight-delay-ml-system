@@ -1,6 +1,6 @@
 project:
   name: flight-delay-ml-system
-  milestone: 1
+  milestone: release-1.0
   target: dep_del15
   prediction_horizon_hours: 24
   random_seed: 42
@@ -25,6 +25,11 @@ data:
   airports_reference: data/external/airports.csv
 
 execution_status:
-  real_bts_ingestion: NOT_EXECUTED
-  reason: No BTS input file supplied
+  real_bts_ingestion: EXECUTED
+  eda: EXECUTED
+  training: EXECUTED
+  locked_test: EXECUTED_ONCE
+  weather_ablation: NOT_EVALUATED_ASOF_COVERAGE
+  api_smoke_test: EXECUTED
+
 

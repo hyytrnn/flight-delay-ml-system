@@ -1,0 +1,9 @@
+{
+  "environment": "Uvicorn localhost HTTP on local Windows workspace",
+  "hardware": "uncontrolled shared developer machine",
+  "requests": 100,
+  "p50_ms": 25.16960000502877,
+  "p95_ms": 30.011645023478195,
+  "measured_at_utc": "2026-11-24T07:31:00Z",
+  "note": "Local integration latency, not a production SLO"
+}
