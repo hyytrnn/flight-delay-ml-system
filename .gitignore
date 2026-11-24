@@ -18,6 +18,8 @@ models/**/*
 !models/.gitkeep
 !models/flight_delay_bundle.joblib
 reports/smoke/*.parquet
+reports/data/v2_smoke/
+reports/eda_v2_smoke/
 
 *.log
 .coverage
