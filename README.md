@@ -139,6 +139,27 @@ CI repeats lint, tests, coverage and compile checks on Python 3.11.
 - [Leakage audit](docs/leakage_audit.md)
 - [Weather as-of policy](docs/weather_asof_policy.md)
 
+## V2 Research Upgrade (`feature/v2-research-eda-optuna`)
+
+V2 preserves the V1 baseline above untouched for historical auditability while rebuilding the benchmark across **33 continuous BTS monthly partitions** (`2023-01..2025-08` development = `3,200,000` sampled rows; `2025-09` = `100,000` untouched final holdout) under a strict `T-24h` contract:
+
+| Window | Rows | Prevalence | PR-AUC | Uplift vs Prev | ROC-AUC | F1 (@0.185) | Brier | ECE | P@Top5% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| V1 Jan 2025 Test (`thr=0.135`) | — | 0.1825 | 0.2213 | +0.0388 (+21.3%) | 0.5841 | 0.3336 | — | — | — |
+| V2 `2025-01` Ref (`thr=0.5`) | 100,000 | 0.1829 | 0.2396 | +0.0566 (+31.0%) | 0.6193 | — | 0.1498 | 0.0353 | 0.2578 |
+| V2 `2025-04..05` (`thr=0.185`) | 200,000 | 0.2061 | 0.3322 | +0.1261 (+61.2%) | 0.6718 | 0.4074 | 0.1539 | 0.0072 | 0.4259 |
+| V2 `2025-06..08` (`thr=0.185`) | 300,000 | 0.2605 | 0.4419 | +0.1815 (+69.7%) | 0.7092 | 0.4873 | 0.1731 | 0.0207 | 0.5598 |
+| **V2 `2025-09` Holdout (Once)** | **100,000** | **0.1655** | **0.2950** | **+0.1296 (+78.3%)** | **0.6868** | **0.3657** | **0.1298** | **0.0139** | **0.3952** |
+
+Key V2 reports:
+- [V2 Research Report](docs/v2_research_report.md)
+- [V2 Ablations (Features, Tuning, Weather, Flow)](reports/ablation_v2.md)
+- [V2 Model Card](reports/model_card_v2.md)
+- [V2 Deployment & Serving Parity](docs/deployment_v2.md)
+- [V2 Monitoring Protocol](docs/monitoring_v2.md)
+- [V2 Interview Defense Guide](docs/interview_defense_v2.md)
+- [V2 Holdout Evidence](reports/holdout/FINAL_ONCE.md) & [Explainability](reports/explainability/shap_grouped_importance.csv)
+
 ## Limitations
 
 The model is a portfolio benchmark, not an operational airline decision system.
