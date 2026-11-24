@@ -47,3 +47,27 @@ def jensen_shannon_divergence(
 
     return 0.5 * kl(p, midpoint) + 0.5 * kl(q, midpoint)
 
+
+def population_stability_index(
+    reference: np.ndarray, current: np.ndarray, *, bins: int = 10, eps: float = 1e-6
+) -> float:
+    """Compute quantile-binned PSI between numeric reference and current arrays."""
+
+    ref = np.asarray(reference, dtype=float)
+    cur = np.asarray(current, dtype=float)
+    ref = ref[~np.isnan(ref)]
+    cur = cur[~np.isnan(cur)]
+    if ref.size == 0 or cur.size == 0:
+        return math.nan
+    edges = np.unique(np.quantile(ref, np.linspace(0.0, 1.0, bins + 1)))
+    if edges.size < 2:
+        return 0.0
+    edges[0] = -np.inf
+    edges[-1] = np.inf
+    ref_counts, _ = np.histogram(ref, bins=edges)
+    cur_counts, _ = np.histogram(cur, bins=edges)
+    ref_pct = np.clip(ref_counts / ref.size, eps, None)
+    cur_pct = np.clip(cur_counts / cur.size, eps, None)
+    return float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
+
+

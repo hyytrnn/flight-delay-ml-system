@@ -1,0 +1,40 @@
+feature,ablation_group,formula_or_source,timestamp_available,legal_at_t24,missing_strategy,origin_code_path,train_serving_parity
+reporting_airline,F0,BTS Reporting_Airline / request.airline,schedule_publication_time,conditional,UNKNOWN_bucket,src/flight_delay/features/build.py,tested
+origin,F0,BTS Origin / request.origin,schedule_publication_time,conditional,UNKNOWN_bucket,src/flight_delay/features/build.py,tested
+dest,F0,BTS Dest / request.destination,schedule_publication_time,conditional,UNKNOWN_bucket,src/flight_delay/features/build.py,tested
+distance,F0,BTS Distance / train route median,reference_or_schedule_time,conditional,median_plus_indicator,src/flight_delay/features/build.py,tested
+crs_elapsed_time,F0,BTS CRSElapsedTime / train route median,schedule_publication_time,conditional,median_plus_indicator,src/flight_delay/features/build.py,tested
+dep_hour_sin,F0,sin(2*pi*local_hour/24),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+dep_hour_cos,F0,cos(2*pi*local_hour/24),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+weekday_sin,F0,sin(2*pi*weekday/7),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+weekday_cos,F0,cos(2*pi*weekday/7),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+month_sin,F0,sin(2*pi*(month-1)/12),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+month_cos,F0,cos(2*pi*(month-1)/12),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+is_weekend,F0,weekday>=5,schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/build.py,tested
+day_of_year_sin,F1,sin(2*pi*dayofyear/365.25),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+day_of_year_cos,F1,cos(2*pi*dayofyear/365.25),schedule_publication_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+is_us_federal_holiday,F1,USFederalHolidayCalendar exact match,calendar_deterministic,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+days_to_nearest_us_federal_holiday,F1,abs distance in days to nearest USFederalHolidayCalendar date,calendar_deterministic,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+season,F1,meteorological season from local month,schedule_publication_time,yes,UNKNOWN_bucket,src/flight_delay/features/v2.py,tested
+carrier_origin,F2,reporting_airline|origin,schedule_publication_time,conditional,min_freq_onehot_or_UNKNOWN,src/flight_delay/features/v2.py,tested
+carrier_route,F2,reporting_airline|origin|dest,schedule_publication_time,conditional,min_freq_onehot_or_UNKNOWN,src/flight_delay/features/v2.py,tested
+origin_hour,F2,origin|local_hour,schedule_publication_time,conditional,min_freq_onehot_or_UNKNOWN,src/flight_delay/features/v2.py,tested
+route_season,F2,origin|dest|season,schedule_publication_time,conditional,min_freq_onehot_or_UNKNOWN,src/flight_delay/features/v2.py,tested
+origin_latitude,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+origin_longitude,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+origin_elevation,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+dest_latitude,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+dest_longitude,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+dest_elevation,F3,airportsdata==20260905,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+haversine_distance_km,F3,great-circle km between origin and dest,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+elevation_delta,F3,dest_elevation - origin_elevation,package_release_time,yes,median_plus_indicator,src/flight_delay/features/v2.py,tested
+origin_subdivision,F3,airportsdata==20260905 subdivision,package_release_time,yes,UNKNOWN_bucket,src/flight_delay/features/v2.py,tested
+dest_subdivision,F3,airportsdata==20260905 subdivision,package_release_time,yes,UNKNOWN_bucket,src/flight_delay/features/v2.py,tested
+origin_departures_planned_1h,P2_PROXY,count scheduled departures per origin/date/hour,retrospective_bts_only,no_for_serving,median_plus_indicator,src/flight_delay/features/v2.py,offline_proxy_only
+origin_departures_planned_3h_block,P2_PROXY,count scheduled departures per origin/date/3h,retrospective_bts_only,no_for_serving,median_plus_indicator,src/flight_delay/features/v2.py,offline_proxy_only
+origin_departures_planned_6h_block,P2_PROXY,count scheduled departures per origin/date/6h,retrospective_bts_only,no_for_serving,median_plus_indicator,src/flight_delay/features/v2.py,offline_proxy_only
+origin_carrier_load_3h_block,P2_PROXY,count scheduled departures per origin/carrier/date/3h,retrospective_bts_only,no_for_serving,median_plus_indicator,src/flight_delay/features/v2.py,offline_proxy_only
+route_planned_load_24h,P2_PROXY,count scheduled departures per route/date,retrospective_bts_only,no_for_serving,median_plus_indicator,src/flight_delay/features/v2.py,offline_proxy_only
+origin_weather_issued,F5_WEATHER,Open-Meteo previous-runs ecmwf_ifs025 day2,run_init+6h<=prediction_at,conditional_matched_coverage,median_plus_missing_flag,src/flight_delay/data/weather_asof.py,offline_ablation_only
+dest_weather_issued,F5_WEATHER,Open-Meteo previous-runs ecmwf_ifs025 day2,run_init+6h<=prediction_at,conditional_matched_coverage,median_plus_missing_flag,src/flight_delay/data/weather_asof.py,offline_ablation_only
+flow_lag_24h_7d,P3_FLOW,hourly origin schedule count lag >=24h and 7d,t-24h_or_earlier,conditional_retrospective_proxy,median_plus_indicator,scripts/feature_flow_v2.py,offline_ablation_only

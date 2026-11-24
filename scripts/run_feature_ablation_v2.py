@@ -62,6 +62,7 @@ def main() -> int:
             folds=folds,
             feature_group=group,
             seed=42,
+            use_inner_early_stopping=False,
         )
         scores = [result.pr_auc for result in results]
         summaries.append(
@@ -83,7 +84,10 @@ def main() -> int:
         fold_rows.extend(
             {"feature_group": group, **asdict(result)} for result in results
         )
-        print(group, summaries[-1])
+        print(group, summaries[-1], flush=True)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(summaries).to_csv(args.output, index=False)
+        pd.DataFrame(fold_rows).to_csv(args.fold_output, index=False)
 
     summary_frame = pd.DataFrame(summaries).sort_values("mean_pr_auc", ascending=False)
     baseline = float(

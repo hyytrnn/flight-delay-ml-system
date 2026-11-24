@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from flight_delay.analysis.stats import (
     jensen_shannon_divergence,
+    population_stability_index,
     total_variation_distance,
     wilson_interval,
 )
@@ -32,3 +34,12 @@ def test_categorical_drift_detects_shift() -> None:
     current = {"AA": 0.2, "UA": 0.8}
     assert total_variation_distance(reference, current) == pytest.approx(0.7)
     assert jensen_shannon_divergence(reference, current) > 0.3
+
+
+def test_population_stability_index_detects_numeric_shift() -> None:
+    rng = np.random.default_rng(42)
+    ref = rng.normal(0.0, 1.0, size=2_000)
+    same = rng.normal(0.0, 1.0, size=2_000)
+    shifted = rng.normal(2.5, 1.0, size=2_000)
+    assert population_stability_index(ref, same) < 0.05
+    assert population_stability_index(ref, shifted) > 0.5

@@ -1,0 +1,9 @@
+{
+  "rows": 3200000,
+  "months": 32,
+  "start_month": "2023-01",
+  "end_month": "2025-08",
+  "positive_rate": 0.20876375,
+  "final_holdout_read": false,
+  "schedule_load_status": "retrospective_bts_proxy_not_production_eligible"
+}
