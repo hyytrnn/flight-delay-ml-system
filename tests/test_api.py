@@ -300,3 +300,50 @@ async def test_v2_1_default_bundle_loads_and_serves_if_present() -> None:
     assert 0.0 <= body["delay_probability"] <= 1.0
 
 
+@pytest.mark.asyncio
+async def test_reviewer_sample_flights_and_dst_spring_forward_parity() -> None:
+    import json
+    from pathlib import Path
+
+    v21_path = Path("models/flight_delay_v2_1_bundle.joblib")
+    if not v21_path.exists():
+        pytest.skip("V2.1 artifact not present")
+
+    samples = json.loads(Path("data/examples/sample_flights.json").read_text(encoding="utf-8"))
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        for case in samples["examples"]:
+            resp = await client.post("/predict", json=case["payload"])
+            assert resp.status_code == case["expected_http"], case["name"]
+            if case["expected_http"] == 200:
+                assert resp.json()["model_version"] == "flight-only-v2.1.0-xgboost"
+
+        # US Spring-forward DST day (2027-03-14: EDT -04:00 vs UTC)
+        dep_utc = datetime(2027, 3, 14, 14, 0, tzinfo=UTC)
+        dep_edt = dep_utc.astimezone(timezone(timedelta(hours=-4)))
+        r_utc = await client.post(
+            "/predict",
+            json={
+                "airline": "AA",
+                "origin": "JFK",
+                "destination": "LAX",
+                "scheduled_departure": dep_utc.isoformat(),
+                "prediction_at": (dep_utc - timedelta(hours=24)).isoformat(),
+            },
+        )
+        r_edt = await client.post(
+            "/predict",
+            json={
+                "airline": "AA",
+                "origin": "JFK",
+                "destination": "LAX",
+                "scheduled_departure": dep_edt.isoformat(),
+                "prediction_at": (dep_edt - timedelta(hours=24)).isoformat(),
+            },
+        )
+        assert r_utc.status_code == 200 and r_edt.status_code == 200
+        assert r_utc.json()["delay_probability"] == pytest.approx(
+            r_edt.json()["delay_probability"]
+        )
+
+

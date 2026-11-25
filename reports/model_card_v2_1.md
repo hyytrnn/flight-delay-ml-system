@@ -3,15 +3,15 @@
 ## 1. Model Identity & Artifact Provenance
 
 - **Model Version**: `flight-only-v2.1.0-xgboost`
-- **Production Bundle**: [flight_delay_v2_1_bundle.joblib](file:///D:/CV/flight-delay-ml-system/models/flight_delay_v2_1_bundle.joblib) (`884,607` bytes, SHA256 `8b48e8f0b730ac09d11536f4cf7e206962e116a0fcd4f762b02357c59a83d7f6`)
-- **Manifest**: [manifest_v2_1.json](file:///D:/CV/flight-delay-ml-system/models/manifest_v2_1.json)
-- **Locked Lineage**: V1 baseline (`flight-only-v1.0.0`, SHA256 `33cef59201a640db870c00f51cb38dc3fb6fbec1b6b6b13128eb6de2a71926ee`) and V2 release (`flight-only-v2.0.0-xgboost`, SHA256 `e5098119a9449bcd9ccf35f42d954ea58c654d4a062bdb734a3b3d47e46a678c`) preserved unmodified via `models/locked_v2_manifest.json`.
+- **Production Bundle**: [flight_delay_v2_1_bundle.joblib](../models/flight_delay_v2_1_bundle.joblib) (`884,607` bytes, SHA256 `8b48e8f0b730ac09d11536f4cf7e206962e116a0fcd4f762b02357c59a83d7f6`)
+- **Manifest**: [manifest_v2_1.json](../models/manifest_v2_1.json)
+- **Locked Lineage**: V1 baseline (`flight-only-v1.0.0`, SHA256 `33cef59201a640db870c00f51cb38dc3fb6fbec1b6b6b13128eb6de2a71926ee`) and V2 release (`flight-only-v2.0.0-xgboost`, SHA256 `e5098119a9449bcd9ccf35f42d954ea58c654d4a062bdb734a3b3d47e46a678c`) preserved unmodified via [`models/locked_v2_manifest.json`](../models/locked_v2_manifest.json).
 - **Model Type**: Calibrated-output gradient-boosted trees (`XGBClassifier` with native categorical `CategoricalFrameTransformer`, `F3` flight-only feature set).
 - **Prediction Contract**: `t24-v2.1-F3` (`prediction_at_utc <= scheduled_departure_utc - 24h`, fail-closed origin airport IANA timezone lookup, binary BTS `DepDel15`: departure delay >= 15 min).
 
 ## 2. Intended Use & Out-of-Scope Boundaries
 
-- **Intended Use**: Portfolio-grade, strictly leak-free `T-24h` U.S. domestic flight departure delay risk scoring and operational priority ranking (`Precision@Top5%`, `Precision@Top10%`, calibrated risk estimation).
+- **Intended Use**: Portfolio-grade `T-24h` U.S. domestic flight departure delay risk estimation with leakage safeguards and documented retrospective schedule-data limitations (supporting priority ranking via `Precision@Top5%`, `Precision@Top10%`, and calibrated risk monitoring).
 - **Out-of-Scope / Non-Goals**:
   - Not a real-time airline dispatch control system (unobserved within-24h tail rotations, same-day crew legality, and FAA ATC ground-delay programs limit theoretical `T-24h` predictability).
   - Does **not** depend on live external weather APIs in default production inference (`weather_status = not_used_flight_only_v2_1`).
@@ -42,7 +42,7 @@
 
 ## 5. One-Time Prospective Holdout Results (`2025-10..2025-11`)
 
-Source: [PROSPECTIVE_EVAL_ONCE.md](file:///D:/CV/flight-delay-ml-system/reports/holdout_v2_1/PROSPECTIVE_EVAL_ONCE.md), [v2_1_holdout_metrics.json](file:///D:/CV/flight-delay-ml-system/reports/holdout_v2_1/v2_1_holdout_metrics.json), [v2_1_monthly_holdout.csv](file:///D:/CV/flight-delay-ml-system/reports/holdout_v2_1/v2_1_monthly_holdout.csv), [v2_1_holdout_slices.csv](file:///D:/CV/flight-delay-ml-system/reports/holdout_v2_1/v2_1_holdout_slices.csv).
+Source: [PROSPECTIVE_EVAL_ONCE.md](holdout_v2_1/PROSPECTIVE_EVAL_ONCE.md), [v2_1_holdout_metrics.json](holdout_v2_1/v2_1_holdout_metrics.json), [v2_1_monthly_holdout.csv](holdout_v2_1/v2_1_monthly_holdout.csv), [v2_1_holdout_slices.csv](holdout_v2_1/v2_1_holdout_slices.csv).
 
 - **Combined `2025-10..11` (`200,000` sampled from `1,156,865` eligible flights, prevalence `0.1969`)**:
   - `PR-AUC`: **`0.3265`** (`+0.1296` / **`+65.81%`** uplift over prevalence, 95% calendar-block CI **`[0.2929, 0.3610]`**)
@@ -50,7 +50,7 @@ Source: [PROSPECTIVE_EVAL_ONCE.md](file:///D:/CV/flight-delay-ml-system/reports/
   - At `max_f1` threshold `0.185`: `Precision = 0.3310`, `Recall = 0.4490`, `F1 = 0.3811`
   - At precision-targeted threshold `0.285`: `Precision = 0.4260`, `Recall = 0.1106`, `F1 = 0.1756`
   - Top-K alerts: `Precision@Top5% = 0.4262`, `Precision@Top10% = 0.4019`
-  - Calibration: `Brier = 0.1511`, `LogLoss = 0.4730`, `ECE = 0.0430` (exceeds `0.04` monitoring threshold, documented in [drift_report.md](file:///D:/CV/flight-delay-ml-system/docs/drift_report.md))
+  - Calibration: `Brier = 0.1511`, `LogLoss = 0.4730`, `ECE = 0.0430` (exceeds `0.04` monitoring threshold, documented in [drift_report.md](../docs/drift_report.md))
 - **Monthly & Slice Breakdown**:
   - `2025-10` (`prev = 0.1959`): `PR-AUC = 0.3384` (`[0.2990, 0.3709]`, `+72.74%`), `ROC-AUC = 0.6870`, `ECE = 0.0417`
   - `2025-11` (`prev = 0.1980`): `PR-AUC = 0.3122` (`[0.2619, 0.3615]`, `+57.70%`), `ROC-AUC = 0.6648`, `ECE = 0.0442`

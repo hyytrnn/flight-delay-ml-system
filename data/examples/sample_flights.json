@@ -1,0 +1,60 @@
+{
+  "description": "Synthetic reviewer test payloads for FastAPI /predict (no BTS files or API keys required).",
+  "examples": [
+    {
+      "name": "Known Mainline Route (JFK -> LAX, Standard Time)",
+      "expected_http": 200,
+      "payload": {
+        "airline": "AA",
+        "origin": "JFK",
+        "destination": "LAX",
+        "scheduled_departure": "2027-02-10T08:30:00-05:00",
+        "prediction_at": "2027-02-09T08:30:00-05:00"
+      }
+    },
+    {
+      "name": "DST Summer Peak Window (ORD -> SFO, CDT -05:00)",
+      "expected_http": 200,
+      "payload": {
+        "airline": "UA",
+        "origin": "ORD",
+        "destination": "SFO",
+        "scheduled_departure": "2027-07-15T17:30:00-05:00",
+        "prediction_at": "2027-07-14T17:30:00-05:00"
+      }
+    },
+    {
+      "name": "Unseen Route Fallback (JFK -> ZZZ)",
+      "expected_http": 200,
+      "payload": {
+        "airline": "AA",
+        "origin": "JFK",
+        "destination": "ZZZ",
+        "scheduled_departure": "2027-02-10T13:30:00Z",
+        "prediction_at": "2027-02-09T13:30:00Z"
+      }
+    },
+    {
+      "name": "Invalid Origin Airport (Fail-Closed 422)",
+      "expected_http": 422,
+      "payload": {
+        "airline": "AA",
+        "origin": "ZZZ",
+        "destination": "LAX",
+        "scheduled_departure": "2027-02-10T13:30:00Z",
+        "prediction_at": "2027-02-09T13:30:00Z"
+      }
+    },
+    {
+      "name": "Horizon Violation (T-2h instead of T-24h -> 422)",
+      "expected_http": 422,
+      "payload": {
+        "airline": "AA",
+        "origin": "JFK",
+        "destination": "LAX",
+        "scheduled_departure": "2027-02-10T13:30:00Z",
+        "prediction_at": "2027-02-10T11:30:00Z"
+      }
+    }
+  ]
+}

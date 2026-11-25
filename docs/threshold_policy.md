@@ -1,6 +1,6 @@
 # Operational Threshold Policy (`T-24h` Flight Delay Risk)
 
-This document summarizes the canonical alerting and calibration policy for `flight-delay-ml-system` V2.1 (detailed evidence in [threshold_policy_v2_1.md](file:///D:/CV/flight-delay-ml-system/docs/threshold_policy_v2_1.md) and [error_analysis_v2_1.md](file:///D:/CV/flight-delay-ml-system/docs/error_analysis_v2_1.md)).
+This document summarizes the canonical alerting and calibration policy for `flight-delay-ml-system` V2.1 (detailed evidence in [threshold_policy_v2_1.md](threshold_policy_v2_1.md) and [error_analysis_v2_1.md](error_analysis_v2_1.md)).
 
 ## Decision Regimes
 
