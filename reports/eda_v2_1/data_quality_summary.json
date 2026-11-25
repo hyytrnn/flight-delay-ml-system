@@ -1,0 +1,17 @@
+{
+  "total_dev_rows": 3200000,
+  "months_covered": 32,
+  "duplicate_flight_keys": 0,
+  "max_abs_sampling_positive_rate_delta": 0.0032158590772197,
+  "mean_sample_positive_rate": 0.20876375,
+  "min_month_positive_rate": 0.13661,
+  "max_month_positive_rate": 0.2955,
+  "non_zero_null_columns": {
+    "cancellation_code": 1.0,
+    "carrier_delay": 0.7880890625,
+    "weather_delay": 0.7880890625,
+    "nas_delay": 0.7880890625,
+    "security_delay": 0.7880890625,
+    "late_aircraft_delay": 0.7880890625
+  }
+}
