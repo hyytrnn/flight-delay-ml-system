@@ -44,4 +44,4 @@ Source artifact: `reports/eda_v2_1/rolling_recalibration_check.csv`
 
 ## 6. Experiment Matrix
 
-See [hypothesis_experiment_matrix.csv](file:///D:/CV/flight-delay-ml-system/reports/eda_v2_1/hypothesis_experiment_matrix.csv) for the consolidated tracking table of validated hypotheses across validation parity, feature selection, model selection, historical priors, calibration, error structure, and thresholding.
+See [hypothesis_experiment_matrix.csv](../reports/eda_v2_1/hypothesis_experiment_matrix.csv) for the consolidated tracking table of validated hypotheses across validation parity, feature selection, model selection, historical priors, calibration, error structure, and thresholding.

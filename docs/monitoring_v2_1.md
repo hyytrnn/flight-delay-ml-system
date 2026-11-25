@@ -1,6 +1,6 @@
 # V2.1 Monitoring Architecture & Protocol
 
-Upgraded monitoring pipeline implemented in [report.py](file:///D:/CV/flight-delay-ml-system/src/flight_delay/monitoring/report.py), [monitor.py](file:///D:/CV/flight-delay-ml-system/scripts/monitor.py), and configured by [monitoring.yaml](file:///D:/CV/flight-delay-ml-system/configs/monitoring.yaml).
+Upgraded monitoring pipeline implemented in [report.py](../src/flight_delay/monitoring/report.py), [monitor.py](../scripts/monitor.py), and configured by [monitoring.yaml](../configs/monitoring.yaml).
 
 ## 1. Monitored Signals
 
@@ -28,4 +28,4 @@ Each run compares a target window against the training reference (`data/processe
   --output reports/monitoring/v2_1_latest.json
 ```
 
-Generated historical & prospective snapshots live in [reports/monitoring/history/](file:///D:/CV/flight-delay-ml-system/reports/monitoring/history/) (`2025-06.json`..`2025-11.json`) and [v2_1_latest.json](file:///D:/CV/flight-delay-ml-system/reports/monitoring/v2_1_latest.json); detailed findings are summarized in [drift_report.md](file:///D:/CV/flight-delay-ml-system/docs/drift_report.md).
+Generated historical & prospective snapshots live in [reports/monitoring/history/](../reports/monitoring/history/) (`2025-06.json`..`2025-11.json`) and [v2_1_latest.json](../reports/monitoring/v2_1_latest.json); detailed findings are summarized in [drift_report.md](drift_report.md).

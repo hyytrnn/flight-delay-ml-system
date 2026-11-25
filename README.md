@@ -1,6 +1,8 @@
-# Flight Delay Prediction ML System (`V2.1` Active)
+# Flight Delay Prediction ML System (`V2.1` Active / `V2.2` Reliability Docs & Demo)
 
-End-to-end, strictly leak-free **T-24h** U.S. domestic flight departure delay (`DepDel15 >= 15` minutes) prediction system built on official BTS Reporting Carrier On-Time Performance data (`3.4M` sampled flights across `35` continuous months `2023-01..2025-11`), engineered with shared training/serving feature builders, expanding-window Optuna validation, paired calendar-block bootstrap uncertainty quantification, FastAPI + Docker serving, GitHub Actions CI/Release automation, and delayed-label drift monitoring.
+End-to-end **T-24h** U.S. domestic flight departure delay (`DepDel15 >= 15` minutes) risk estimation system with leakage safeguards and documented retrospective schedule-data limitations. Built on official BTS Reporting Carrier On-Time Performance data (`3.4M` sampled flights across `35` continuous months `2023-01..2025-11`), shared training/serving feature builders, expanding-window Optuna validation, paired calendar-block bootstrap uncertainty quantification, FastAPI + Docker serving, GitHub Actions CI/Release automation, and delayed-label drift monitoring.
+
+> **Production Default vs Research Tracks**: The default API and Docker image serve the frozen **flight-only `F3`** XGBoost model (`flight-only-v2.1.0-xgboost`, `100%` U.S. airport coverage). Weather (`F5`) and historical priors are isolated as **experimental/research ablations** with fallback support, not active default production predictors.
 
 ## Key Results & Verified Version Lineage
 
@@ -100,10 +102,11 @@ Sample `/predict` request (UTC vs `-05:00` produce identical `delay_probability 
 
 ## Documentation & Evidence Map
 
+- **Reviewer Quickstart & Interactive Demo**: [`docs/reviewer_quickstart.md`](docs/reviewer_quickstart.md) · [`demo/index.html`](demo/index.html) · [`data/examples/sample_flights.json`](data/examples/sample_flights.json)
 - **Evaluation & Validation**: [`docs/evaluation_protocol_v2_1.md`](docs/evaluation_protocol_v2_1.md) · [`docs/early_stopping_parity.md`](docs/early_stopping_parity.md) · [`reports/holdout_v2_1/PROSPECTIVE_EVAL_ONCE.md`](reports/holdout_v2_1/PROSPECTIVE_EVAL_ONCE.md)
-- **Model Card & CV Evidence**: [`reports/model_card_v2_1.md`](reports/model_card_v2_1.md) · [`docs/cv_claims_evidence.md`](docs/cv_claims_evidence.md) · [`reports/eda_v2_1/hypothesis_experiment_matrix.csv`](reports/eda_v2_1/hypothesis_experiment_matrix.csv)
-- **Error, Thresholds & Weather**: [`docs/error_analysis_v2_1.md`](docs/error_analysis_v2_1.md) · [`docs/threshold_policy_v2_1.md`](docs/threshold_policy_v2_1.md) · [`docs/weather_release_provenance.md`](docs/weather_release_provenance.md)
-- **Serving, Monitoring & Drift**: [`docs/deployment_v2.md`](docs/deployment_v2.md) · [`docs/monitoring_v2_1.md`](docs/monitoring_v2_1.md) · [`docs/drift_report.md`](docs/drift_report.md) · [`docs/retraining_trigger_policy.md`](docs/retraining_trigger_policy.md)
+- **Model Card, Calibration & CV Evidence**: [`reports/model_card_v2_1.md`](reports/model_card_v2_1.md) · [`reports/calibration_drift_v2_2.md`](reports/calibration_drift_v2_2.md) · [`docs/cv_claims_evidence.md`](docs/cv_claims_evidence.md) · [`reports/eda_v2_1/hypothesis_experiment_matrix.csv`](reports/eda_v2_1/hypothesis_experiment_matrix.csv)
+- **Error, Thresholds & Weather (Experimental)**: [`docs/error_analysis_v2_1.md`](docs/error_analysis_v2_1.md) · [`docs/threshold_policy_v2_1.md`](docs/threshold_policy_v2_1.md) · [`docs/weather_release_provenance.md`](docs/weather_release_provenance.md)
+- **Serving, Monitoring & Release**: [`docs/deployment_v2.md`](docs/deployment_v2.md) · [`docs/monitoring_v2_1.md`](docs/monitoring_v2_1.md) · [`docs/drift_report.md`](docs/drift_report.md) · [`docs/retraining_trigger_policy.md`](docs/retraining_trigger_policy.md) · [`docs/release_v2_2.md`](docs/release_v2_2.md)
 - **V1 & V2 Historical Artifacts**: [`CHANGELOG-V2.md`](CHANGELOG-V2.md) · [`docs/v2_research_report.md`](docs/v2_research_report.md) · [`reports/holdout/FINAL_ONCE.md`](reports/holdout/FINAL_ONCE.md)
 
 ## Limitations

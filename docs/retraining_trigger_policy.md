@@ -1,20 +1,23 @@
-# V2.1 Retraining & Recalibration Trigger Policy
+# V2.2 Retraining, Calibration & Rollback Policy
 
-Threshold definitions are stored declaratively in [monitoring.yaml](file:///D:/CV/flight-delay-ml-system/configs/monitoring.yaml) and evaluated by `build_report()` in [report.py](file:///D:/CV/flight-delay-ml-system/src/flight_delay/monitoring/report.py).
+Threshold definitions are stored declaratively in [monitoring.yaml](../configs/monitoring.yaml) and evaluated by `build_report()` in [report.py](../src/flight_delay/monitoring/report.py).
 
-## 1. Configured Alert Thresholds
+## 1. Configured Alert & Sample-Support Thresholds
 
-| Signal | Warning Threshold | Critical / Action Threshold | Interpretation & Action |
-|---|---|---|---|
-| Covariate `PSI` (`distance`, `crs_elapsed_time`, `origin_elevation`) | `>= 0.15` | `>= 0.25` | Structural schedule/fleet shift; trigger retraining if sustained and accompanied by metric drop |
-| `unseen_route_rate` | `>= 0.03` (`3%`) | `>= 0.06` (`6%`) | Network expansion beyond training routes; verify fallback metrics and schedule retraining |
-| Calibration `ECE` (with delayed `DepDel15` labels) | `>= 0.04` | Sustained 2+ months `>= 0.04` | Probability shift; evaluate rolling recalibration vs full seasonal refit |
-| `brier_delta` (`current_brier - ref_brier`) | `>= +0.025` | Accompanied by PR-AUC drop | Note: distinguish **prevalence-driven Brier inflation** in storm summers (`2025-06..07` had higher Brier despite peak `0.458–0.469` PR-AUC!) from discrimination decay |
+| Signal | Minimum Support | Warning / Trigger Rule | Action Required |
+|---|---:|---|---|
+| Covariate `PSI` (`distance`, `crs_elapsed_time`, `origin_elevation`) | `>= 10,000` flights/window | `>= 0.15` warning; `>= 0.25` critical | Inspect schedule/network mix; trigger retraining if sustained across 2 consecutive months with metric drop |
+| `unseen_route_rate` | `>= 10,000` flights/window | `>= 0.03` warning; `>= 0.06` critical | Audit fallback route metrics (`route_status = fallback_global_median`) and schedule route-table refresh |
+| Calibration `ECE` (delayed `DepDel15` labels) | `>= 50,000` labeled flights/month (`>= 500` for subgroup audit) | `>= 0.04` warning; **2 consecutive months `>= 0.04`** triggers retraining | Run `scripts/audit_calibration_v2_2.py` on settled pre-holdout labels; schedule full refit if calibration shift persists |
+| `brier_delta` (`current_brier - ref_brier`) | `>= 50,000` labeled flights/month | `>= +0.025` warning | Cross-check `brier_reliability` vs `brier_resolution` and `PR-AUC`: do **not** retrain solely on storm-season prevalence surges (`2025-06..07` had higher Brier despite peak `0.458–0.469` PR-AUC) |
+| **Missing / Delayed Labels** | BTS ~60-day lag | `dep_del15` absent or `< 50,000` settled rows | Emit explicit label-availability warning; rely on `score_psi` & `feature_psi` only and defer ECE/Brier claims until labels settle |
 
-## 2. Empirical Policy Lessons from `2025-06..2025-11`
+## 2. Empirical Policy Lessons (`2025-04..2025-11`)
 
-1. **Do NOT blindly retrain on summer `brier_delta` warnings alone**: During `2025-06` and `2025-07`, positive prevalence surged (`0.275–0.285` vs `0.204` ref), raising Brier by `+0.0315..+0.0338`, yet ranking `PR-AUC` hit `0.4578–0.4688` (`ECE = 0.0246–0.0249 < 0.04`).
-2. **Respond intentionally to sustained autumn `ECE >= 0.04`**: During `2025-10` (`ECE = 0.0417`) and `2025-11` (`ECE = 0.0442`), both consecutive prospective months crossed `0.04` (`score_psi = 0.293–0.491`, mean score `0.156` vs prevalence `0.197`), triggering `ece_warning` and `retraining_recommended = true`.
-3. **Recalibration vs Full Refit Protocol**:
-   - Never apply naive 1-month lagged Platt refits blindly across seasonal boundaries (verified in `rolling_recalibration_check.csv`, where 1-month lag worsened `2025-03` ECE `0.0168 -> 0.0321` and `2025-05` `0.0127 -> 0.0298`).
-   - Instead, when `ECE >= 0.04` persists across two consecutive months (`2025-10` and `2025-11`), run a scheduled V2.2 training cycle incorporating recent settled BTS partitions (`2025-09..11`), re-select season-matched calibration, and freeze a brand-new prospective holdout (`2025-12..2026-02`) before promoting to `main`.
+1. **Do NOT force post-hoc recalibration that hurts forward windows**: In [calibration_drift_v2_2.md](../reports/calibration_drift_v2_2.md), fitting Platt (`delta_Brier = +0.000354`), Isotonic (`+0.004205`), or 1-parameter temperature scaling (`T = 1.0072`, `-0.000007`) on `2025-02..03` failed to improve `2025-04..08` over `none_frozen`.
+2. **Respond intentionally to sustained autumn `ECE >= 0.04`**: On `2025-10` (`ECE = 0.0417`) and `2025-11` (`ECE = 0.0442`), both consecutive prospective months crossed `0.04`, triggering `ece_warning` and `retraining_recommended = true`.
+
+## 3. Release Gate & Rollback Protocol
+
+- **Approval Gate**: Any candidate retrained bundle must pass (a) chronological out-of-time evaluation on a newly settled holdout window untouched during selection, (b) zero leakage unit tests (`ruff`, `pytest --cov`), and (c) explicit human review of the before/after calibration and subgroup (`reporting_airline`, `route_known`) report before merging to `main`.
+- **Instant Rollback**: Set `FLIGHT_DELAY_MODEL_PATH` back to the SHA256-locked prior bundle (`models/flight_delay_v2_1_bundle.joblib`, `models/flight_delay_v2_bundle.joblib`, or `models/flight_delay_bundle.joblib`) and verify `/health` + `/predict` parity without code changes.
