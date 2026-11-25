@@ -1,11 +1,16 @@
-service:
-  metrics: [request_count, error_rate, latency_p50, latency_p95]
-data:
-  metrics: [missing_rate, unknown_route_rate, invalid_timestamp_rate]
-prediction:
-  metrics: [positive_rate, probability_distribution]
-drift:
-  method: psi
-  warning_threshold: null
-  note: Threshold must be selected from observed reference behavior, not invented.
-
+reference:
+  data_root: data/processed/v2
+  end_exclusive: "2025-02-01"
+thresholds:
+  psi_warning: 0.15
+  psi_critical: 0.25
+  unseen_route_rate_warning: 0.03
+  unseen_route_rate_critical: 0.06
+  ece_warning: 0.04
+  brier_increase_warning: 0.025
+monitored_numeric_columns:
+  - distance
+  - crs_elapsed_time
+  - origin_elevation
+histogram_bins: 10
+history_dir: reports/monitoring/history

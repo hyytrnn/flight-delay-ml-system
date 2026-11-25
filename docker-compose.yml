@@ -4,7 +4,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      FLIGHT_DELAY_MODEL_PATH: /app/models/flight_delay_bundle.joblib
+      FLIGHT_DELAY_MODEL_PATH: /app/models/flight_delay_v2_1_bundle.joblib
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

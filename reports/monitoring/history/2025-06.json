@@ -1,0 +1,97 @@
+{
+  "alerts": {
+    "alert_reasons": [
+      "brier_increase_warning:0.0315>=0.025"
+    ],
+    "brier_warning": true,
+    "ece_warning": false,
+    "psi_critical_features": [],
+    "psi_warning_features": [],
+    "retraining_recommended": true,
+    "unseen_route_status": "ok"
+  },
+  "brier_delta": 0.03149829797443132,
+  "created_at_utc": "2026-11-25T01:06:30.967694+00:00",
+  "current_positive_rate": 0.27542,
+  "current_rows": 100000,
+  "feature_psi": {
+    "crs_elapsed_time": 0.0015776839739049648,
+    "distance": 0.0021138113083808076,
+    "origin_elevation": 0.0026058991796203104
+  },
+  "interpretation": "Data drift is not proof of performance drift; delayed DepDel15 labels are required for outcome monitoring.",
+  "model_version": "flight-only-v2.1.0-xgboost",
+  "outcome_metrics": {
+    "brier": 0.17952367548557194,
+    "ece": 0.024908508923426272,
+    "f1": 0.5020740579867521,
+    "log_loss": 0.5364118406032781,
+    "positive_rate": 0.27542,
+    "pr_auc": 0.4578478498700413,
+    "pr_auc_uplift_abs": 0.1824278498700413,
+    "pr_auc_uplift_rel": 0.6623623915112966,
+    "precision": 0.35815207287599926,
+    "precision_at_top_10pct": 0.5349,
+    "precision_at_top_5pct": 0.5714,
+    "recall": 0.839372594582819,
+    "roc_auc": 0.707984146381128,
+    "rows": 100000.0,
+    "threshold": 0.185
+  },
+  "predicted_score_summary": {
+    "alert_rate_default": 0.64548,
+    "alert_rate_precision_target_35": 0.35878,
+    "mean": 0.2551551527137309,
+    "p50": 0.233716681599617,
+    "p90": 0.4427422344684601,
+    "p95": 0.5000994056463242,
+    "std": 0.1247984594439491,
+    "threshold_default": 0.185,
+    "threshold_precision_target_35": 0.285
+  },
+  "reference_brier": 0.14802537751114062,
+  "reference_positive_rate": 0.2040792,
+  "reference_rows": 2500000,
+  "score_histogram": {
+    "bin_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "counts": [
+      6329,
+      33894,
+      27801,
+      17031,
+      9939,
+      4827,
+      179,
+      0,
+      0,
+      0
+    ],
+    "proportions": [
+      0.06329,
+      0.33894,
+      0.27801,
+      0.17031,
+      0.09939,
+      0.04827,
+      0.00179,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "score_psi": 0.2035707655815368,
+  "unseen_route_rate": 0.00489,
+  "window_label": "2025-06"
+}

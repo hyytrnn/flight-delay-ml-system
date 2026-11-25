@@ -269,3 +269,34 @@ async def test_v1_frozen_bundle_compatibility_if_present() -> None:
     assert response.json()["model_version"] == "flight-only-v1.0.0"
 
 
+@pytest.mark.asyncio
+async def test_v2_1_default_bundle_loads_and_serves_if_present() -> None:
+    from pathlib import Path
+
+    v21_path = Path("models/flight_delay_v2_1_bundle.joblib")
+    if not v21_path.exists():
+        pytest.skip("V2.1 artifact not present")
+    departure = datetime(2027, 2, 10, 13, 30, tzinfo=UTC)
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        health = await client.get("/health")
+        assert health.status_code == 200
+        assert health.json()["model_version"] == "flight-only-v2.1.0-xgboost"
+        assert health.json()["feature_contract_version"] == "t24-v2.1-F3"
+        response = await client.post(
+            "/predict",
+            json={
+                "airline": "AA",
+                "origin": "JFK",
+                "destination": "LAX",
+                "scheduled_departure": departure.isoformat(),
+                "prediction_at": (departure - timedelta(hours=24)).isoformat(),
+            },
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["model_version"] == "flight-only-v2.1.0-xgboost"
+    assert body["feature_contract_version"] == "t24-v2.1-F3"
+    assert 0.0 <= body["delay_probability"] <= 1.0
+
+
