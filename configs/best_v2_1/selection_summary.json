@@ -1,0 +1,63 @@
+{
+  "selected_feature_group": "F3",
+  "rule": ">= +0.0005 mean_pr_auc vs F0, worst_fold within -0.0020, brier within +0.0005; else F0 parsimony",
+  "tuned_candidates": [
+    {
+      "stage": "optuna_equal_budget",
+      "feature_group": "F0",
+      "feature_count": 12,
+      "model": "xgboost",
+      "eval_strategy": "refit_full_train",
+      "complete_trials": 9,
+      "pruned_trials": 1,
+      "mean_pr_auc": 0.3403581037922915,
+      "std_pr_auc": 0.05723805124592196,
+      "worst_fold_pr_auc": 0.25586736058662407,
+      "mean_roc_auc": 0.6780346586983976,
+      "mean_brier": 0.15125270932912827,
+      "mean_fit_seconds": 130.11804302498786,
+      "oof_predictions_sha256": "55d2c11218f1bcb89d1c8e19545bee3570f60004991f5a44db3277582c8e479c",
+      "paired_delta_pr_auc_vs_F0": 0.0,
+      "paired_ci95_low": 0.0,
+      "paired_ci95_high": 0.0
+    },
+    {
+      "stage": "optuna_equal_budget",
+      "feature_group": "F2",
+      "feature_count": 21,
+      "model": "xgboost",
+      "eval_strategy": "refit_full_train",
+      "complete_trials": 7,
+      "pruned_trials": 3,
+      "mean_pr_auc": 0.34184589507978796,
+      "std_pr_auc": 0.05538814639165465,
+      "worst_fold_pr_auc": 0.26435551640664706,
+      "mean_roc_auc": 0.6770106819467576,
+      "mean_brier": 0.15141353756189346,
+      "mean_fit_seconds": 110.62129379999533,
+      "oof_predictions_sha256": "0af14bd07fe42d8564d357370e991c7383c527330c9ae89c9b082a8334db0380",
+      "paired_delta_pr_auc_vs_F0": -0.0013492962522490828,
+      "paired_ci95_low": -0.004735299134579625,
+      "paired_ci95_high": 0.0024103324919840024
+    },
+    {
+      "stage": "optuna_equal_budget",
+      "feature_group": "F3",
+      "feature_count": 31,
+      "model": "xgboost",
+      "eval_strategy": "refit_full_train",
+      "complete_trials": 9,
+      "pruned_trials": 1,
+      "mean_pr_auc": 0.34276819932990243,
+      "std_pr_auc": 0.0550043952097069,
+      "worst_fold_pr_auc": 0.2644258928795177,
+      "mean_roc_auc": 0.6775817353040691,
+      "mean_brier": 0.15128520876169205,
+      "mean_fit_seconds": 123.24011702500138,
+      "oof_predictions_sha256": "2015ee7bfc896ff4054bd749643c72ec92ea4c9bd2b56e041712b074c6fce275",
+      "paired_delta_pr_auc_vs_F0": -0.000417544262789036,
+      "paired_ci95_low": -0.0036541436627314182,
+      "paired_ci95_high": 0.0030167054047090646
+    }
+  ]
+}

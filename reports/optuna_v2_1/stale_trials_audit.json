@@ -29,5 +29,45 @@
   "historical_v2_db_modified": false,
   "v2_1_db": "reports\\optuna_v2_1\\v2_1_study.db",
   "v2_1_stale_running_cleaned": 0,
-  "v2_1_studies": []
+  "v2_1_studies": [
+    {
+      "study_name": "v2_1_fair_xgboost_F0_none_probe_only",
+      "state_counts": {
+        "COMPLETE": 9,
+        "PRUNED": 1
+      },
+      "running_trial_numbers": []
+    },
+    {
+      "study_name": "v2_1_fair_xgboost_F2_none_probe_only",
+      "state_counts": {
+        "COMPLETE": 7,
+        "PRUNED": 3
+      },
+      "running_trial_numbers": []
+    },
+    {
+      "study_name": "v2_1_fair_xgboost_F3_none_probe_only",
+      "state_counts": {
+        "COMPLETE": 16,
+        "PRUNED": 2
+      },
+      "running_trial_numbers": []
+    },
+    {
+      "study_name": "v2_1_optuna_lightgbm_F3_none_probe_only",
+      "state_counts": {
+        "COMPLETE": 11,
+        "PRUNED": 5
+      },
+      "running_trial_numbers": []
+    },
+    {
+      "study_name": "v2_1_optuna_catboost_F3_none_probe_only",
+      "state_counts": {
+        "COMPLETE": 3
+      },
+      "running_trial_numbers": []
+    }
+  ]
 }
