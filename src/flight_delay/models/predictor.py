@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OrdinalEncoder
 
+from flight_delay.data.weather_client import WEATHER_FEATURES, resolve_t24_weather_features
 from flight_delay.features.build import build_single_feature, scheduled_local_from_aware
 from flight_delay.features.v2 import FeatureGroup, build_v2_feature_frame
 
@@ -120,8 +122,9 @@ class ModelBundle:
         dest: str,
         scheduled_local: pd.Timestamp,
         values: dict[str, float],
+        weather_features: dict[str, float] | None = None,
     ) -> pd.DataFrame:
-        group: FeatureGroup = getattr(self, "feature_group", "F0")
+        group: str = getattr(self, "feature_group", "F0")
         if group == "F0":
             return build_single_feature(
                 reporting_airline=reporting_airline,
@@ -154,16 +157,22 @@ class ModelBundle:
                 }
             ]
         )
-        return build_v2_feature_frame(raw, group)
+        base_group: FeatureGroup = "F3" if group == "F5" else group  # type: ignore[assignment]
+        frame = build_v2_feature_frame(raw, base_group)
+        if group == "F5":
+            defaults = weather_features or {}
+            for col in WEATHER_FEATURES:
+                default_val = 1.0 if col.endswith("_weather_missing") else float(np.nan)
+                frame[col] = float(defaults.get(col, default_val))
+        return frame
 
-    def predict_request(
+    def _prepare_request_context(
         self,
         *,
-        reporting_airline: str,
         origin: str,
         dest: str,
         scheduled_departure: datetime,
-    ) -> tuple[float, bool, str]:
+    ) -> tuple[str, str, str, dict[str, float], pd.Timestamp]:
         origin_code = origin.upper()
         dest_code = dest.upper()
         route_key = f"{origin_code}|{dest_code}"
@@ -190,7 +199,19 @@ class ModelBundle:
             # Compatibility path for the frozen V1 artifact, which predates the
             # airport-timezone map. V2 artifacts must populate airport_timezones.
             scheduled_local = pd.Timestamp(scheduled_departure.replace(tzinfo=None))
+        return origin_code, dest_code, route_status, values, scheduled_local
 
+    def predict_request(
+        self,
+        *,
+        reporting_airline: str,
+        origin: str,
+        dest: str,
+        scheduled_departure: datetime,
+    ) -> tuple[float, bool, str]:
+        origin_code, dest_code, route_status, values, scheduled_local = self._prepare_request_context(
+            origin=origin, dest=dest, scheduled_departure=scheduled_departure
+        )
         features = self._build_request_features(
             reporting_airline=reporting_airline,
             origin=origin_code,
@@ -200,6 +221,70 @@ class ModelBundle:
         )
         probability = float(self.predict_proba(features)[0])
         return probability, probability >= self.threshold, route_status
+
+    def predict_request_with_weather(
+        self,
+        *,
+        reporting_airline: str,
+        origin: str,
+        dest: str,
+        scheduled_departure: datetime,
+        prediction_at: datetime | None = None,
+        fetcher: Callable[[float, float], dict[str, Any]] | None = None,
+    ) -> tuple[float, bool, str, str]:
+        """Score a request with optional F5 T-24h weather resolution and graceful degradation."""
+        origin_code, dest_code, route_status, values, scheduled_local = self._prepare_request_context(
+            origin=origin, dest=dest, scheduled_departure=scheduled_departure
+        )
+        group = getattr(self, "feature_group", "F0")
+        if group != "F5":
+            features = self._build_request_features(
+                reporting_airline=reporting_airline,
+                origin=origin_code,
+                dest=dest_code,
+                scheduled_local=scheduled_local,
+                values=values,
+            )
+            probability = float(self.predict_proba(features)[0])
+            weather_status = str(
+                self.metadata.get("weather_status", "not_used_flight_only_model")
+            )
+            return probability, probability >= self.threshold, route_status, weather_status
+
+        airport_lookup = getattr(self, "airport_lookup", {})
+        dep_utc = (
+            scheduled_departure.astimezone(UTC)
+            if scheduled_departure.tzinfo
+            else scheduled_departure.replace(tzinfo=UTC)
+        )
+        arr_utc = dep_utc + timedelta(minutes=float(values["crs_elapsed_time"]))
+        pred_utc = (
+            prediction_at.astimezone(UTC)
+            if prediction_at is not None and prediction_at.tzinfo
+            else (
+                prediction_at.replace(tzinfo=UTC)
+                if prediction_at is not None
+                else dep_utc - timedelta(hours=24)
+            )
+        )
+        weather_feats, weather_status = resolve_t24_weather_features(
+            origin_meta=airport_lookup.get(origin_code, {}),
+            dest_meta=airport_lookup.get(dest_code, {}),
+            scheduled_departure_utc=dep_utc,
+            scheduled_arrival_utc=arr_utc,
+            prediction_at_utc=pred_utc,
+            fetcher=fetcher,
+        )
+        features = self._build_request_features(
+            reporting_airline=reporting_airline,
+            origin=origin_code,
+            dest=dest_code,
+            scheduled_local=scheduled_local,
+            values=values,
+            weather_features=weather_feats,
+        )
+        probability = float(self.predict_proba(features)[0])
+        return probability, probability >= self.threshold, route_status, weather_status
 
 
 def save_bundle(bundle: ModelBundle, path: str | Path) -> None:
