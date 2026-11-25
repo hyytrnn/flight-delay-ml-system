@@ -53,7 +53,7 @@ def discover_monthly_files(
     discovered: list[tuple[int, int, Path]] = []
     seen_months: set[tuple[int, int]] = set()
     duplicates: set[tuple[int, int]] = set()
-    for path in root.rglob("*.zip"):
+    for path in sorted(root.rglob("*.zip")):
         try:
             year = int(path.parent.parent.name)
             month = int(path.parent.name)
