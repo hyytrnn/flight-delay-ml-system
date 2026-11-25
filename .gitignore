@@ -29,4 +29,5 @@ reports/eda_v2_smoke/
 *.log
 .coverage
 htmlcov/
+pytest-results.xml
 
