@@ -41,3 +41,12 @@ No V2 performance claim was made in Phase 0; Phases 1–7 executed all V2 gates 
 - Auxiliary hourly air-traffic flow `hist_gbr` reduced flow RMSE (`1.7024` vs `2.1322` 7-day naive), while strictly `<= t-24h` BTS sampled flow lags added `+0.00011` PR-AUC over `F3`.
 - Generated TreeSHAP + grouped permutation rankings (`reports/explainability/`), verified UTC vs `-05:00` API parity (`scripts/api_smoke_v2.py`), and published V2 research/deployment/monitoring/model-card documentation.
 
+## V2.1 Validation Rigor, Prospective Holdout & Production Release (`feature/v2.1-validation-weather` -> `main`)
+
+- **G0 Protocol & Immutability**: Locked V1 and V2 bundles via `models/locked_v2_manifest.json`; configured `configs/splits_v2_1.yaml` excluding `2025-09..12` from development preparation; corrected baseline and 3-paper citations in `docs/v2_research_report.md`.
+- **G2 Statistical Engine & Refit Parity**: Added exact pre-sorted grouped-bincount calendar-block bootstrap CI in `calibrate_v2.py` (`0.0` AP/ROC diff vs sklearn), `eval_strategy="refit_full_train"` in `tuning_v2.py` (`+0.003083` XGBoost / `+0.003942` LightGBM over `probe_only`), and read-only Optuna stale-trial audit.
+- **G1 & G3 Fair Feature/Model Selection**: Selected `F3` under equal 10-trial Optuna budgets (`0.342768`, worst fold `0.264426`) and `xgboost` (`none`) across multi-model time-budgeted tuning (`18` XGBoost, `16` LightGBM, `3` CatBoost trials plus HistGB, LogReg, Dummy).
+- **G4 & G5 Error, Threshold & Lagged-Priors Audits**: Rejected strict 2-month lagged BTS priors for serving (`+0.000279 [-0.001506, +0.002299]`); analyzed 19 validation months (`reports/eda_v2_1/`), cost curves (`2:1` min at `0.290`), and precision-targeted threshold `0.285` vs `max_f1 = 0.185`.
+- **G6 Weather Provenance & Fallback**: Audited `ecmwf_ifs025` `_previous_day2` coverage (`28.2–29.8%` both-matched), carrier skew, Track A (`+0.013053`) & Track B 1.0M fallback (`+0.012047`) paired CIs, and implemented `F5` serving fallback + leakage tests (`tests/test_weather_serving_fallback.py`).
+- **G7–G8 Prospective Holdout (`2025-10..2025-11`), Serving Switch & Monitoring**: Froze `models/flight_delay_v2_1_bundle.joblib` (`SHA256 = 8b48e8f...`), evaluated untouched `2025-10..2025-11` (`200,000` sampled from `1,156,865` eligible) once (`PR-AUC = 0.3265 [0.2929, 0.3610]`, `+65.81%`, `ROC-AUC = 0.6759`, `ECE = 0.0430`), switched API/Docker defaults to V2.1, upgraded `monitoring/report.py` (`reports/monitoring/v2_1_latest.json`), and added CI fresh-clone/container smoke + GitHub Release automation.
+

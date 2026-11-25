@@ -1,31 +1,38 @@
-# V2 Deployment & Train-Serving Parity Guide
+# Deployment & Train-Serving Parity Guide (`V2.1` Active)
 
-## Serving Contract (`t24-v2-F3`)
+## 1. Active Production Serving Contract (`t24-v2.1-F3`)
 
-- **Bundle Path**: `models/flight_delay_v2_bundle.joblib` (loaded at startup via `FLIGHT_DELAY_MODEL_PATH`, default V1 fallback remains compatible when V1 bundle is loaded).
-- **Timezone Fail-Closed Policy**: V2 bundles set `require_origin_timezone = True`. Input `scheduled_departure_utc` MUST be timezone-aware (UTC `'Z'` or explicit offset like `2027-02-09T08:30:00-05:00`) and `origin` MUST resolve to a known IANA timezone in `bundle.airport_timezones` / `airport_lookup`. Unknown origin airports return HTTP `422` rather than defaulting to UTC.
-- **Train-Serving Feature Parity**: `ModelBundle.build_features_from_payload` computes identical local departure hours (`ZoneInfo` DST-safe), `crs_elapsed_time`, `distance`, airport coordinates/elevation deltas, cyclical encodings, and U.S. federal holiday proximity (`days_to_nearest_us_federal_holiday`, `is_us_federal_holiday`) via `flight_delay.features.v2`.
-- **Unseen Routes**: New origin-dest pairs are flagged `route_status = "unseen"`, receive deterministic `haversine_distance_km` + airport metadata fallback (`crs_elapsed_time` median/estimate, `distance` haversine fallback when omitted), and keep `CategoricalFrameTransformer` unknown category handling.
+- **Default Bundle Path**: `models/flight_delay_v2_1_bundle.joblib` (`FLIGHT_DELAY_MODEL_PATH` default in `src/flight_delay/api/main.py`, `Dockerfile`, and `docker-compose.yml`).
+- **Model Version**: `flight-only-v2.1.0-xgboost` (`F3`, SHA256 `8b48e8f0b730ac09d11536f4cf7e206962e116a0fcd4f762b02357c59a83d7f6`).
+- **Backward Compatibility**: Overriding `FLIGHT_DELAY_MODEL_PATH` with `models/flight_delay_v2_bundle.joblib` (V2) or `models/flight_delay_bundle.joblib` (V1) continues to serve cleanly without code changes (`tests/test_api.py`, `scripts/verify_fresh_clone_v2_1.py`).
+- **Timezone Fail-Closed Policy**: `require_origin_timezone = True`. Requests must supply timezone-aware `scheduled_departure` and `prediction_at` (`<= scheduled_departure - 24h`, 5-minute tolerance), and `origin` must map to a known IANA timezone in `bundle.airport_timezones` / `airport_lookup`; unknown origin stations fail closed with HTTP `422`.
+- **Train-Serving Feature Parity**: Both offline training (`scripts/evaluate_holdout_v2_1.py`) and live API inference (`ModelBundle._build_request_features`) call `flight_delay.features.v2.build_v2_feature_frame(..., "F3")` after localized `ZoneInfo` conversion.
+- **Unseen Routes**: Unknown `(origin|dest)` pairs mark `route_status = "fallback_global_median"` and compute deterministic `haversine_distance_km` + global median route duration/distance while preserving airport coordinates/elevations where known.
 
-## Verification Commands
+## 2. Health, Logging & Optional `F5` Weather Fallback
 
+- **`GET /health`**: Returns `status`, `model_loaded`, `model_version`, `feature_contract_version`, `bundle_path`, and `weather_provider_status = "not_required"`.
+- **Structured JSON Request Logs**: Logger `flight_delay.api` emits `request_id`, `path`, `status`, `latency_ms`, and `model_version` on every request alongside Prometheus `/metrics`.
+- **Optional `F5` Live-Weather Fallback (`src/flight_delay/data/weather_client.py` & `ModelBundle.predict_request_with_weather`)**:
+  - Not enabled in the default flight-only serving path (`F3`, `100%` U.S. airport coverage).
+  - For optional `F5` weather bundles, `resolve_t24_weather_features()` enforces `model_availability_time_utc <= prediction_at_utc` and degrades cleanly on HTTP timeouts, `429` rate limits, missing coordinates, or >30 min hourly mismatch by filling `NaN` + `*_weather_missing=1.0` with `weather_status="degraded_fallback_missing_weather"` (`tests/test_weather_serving_fallback.py`).
+
+## 3. Verification & Container Commands
+
+### Windows PowerShell (Fresh Clone Smoke + Local API)
 ```powershell
-# API smoke check against V2 bundle (UTC vs offset parity verified)
-.\.venv\Scripts\python.exe scripts/api_smoke_v2.py models/flight_delay_v2_bundle.joblib
-
-# Run FastAPI locally
-$env:FLIGHT_DELAY_MODEL_PATH="models/flight_delay_v2_bundle.joblib"
-.\.venv\Scripts\uvicorn.exe flight_delay.api.main:app --host 0.0.0.0 --port 8000
+.\.venv\Scripts\python.exe scripts/verify_fresh_clone_v2_1.py
+.\.venv\Scripts\uvicorn.exe flight_delay.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Observed `api_smoke_v2.py` parity check on `models/flight_delay_v2_bundle.joblib`:
-- `GET /health` -> `200`, `model_version = flight-only-v2.0.0-xgboost`, `weather_provider_status = not_required`
-- `POST /predict` with `2027-02-09T13:30:00Z` vs `2027-02-09T08:30:00-05:00` -> identical `delay_probability = 0.10089181363582611`, `threshold = 0.185`, `feature_contract_version = t24-v2-F3`
-- `GET /metrics` -> `200`
+Observed `verify_fresh_clone_v2_1.py` output against `models/flight_delay_v2_1_bundle.joblib`:
+- `GET /health` -> `200`, `model_version = flight-only-v2.1.0-xgboost`, `feature_contract_version = t24-v2.1-F3`, `weather_provider_status = not_required`
+- `POST /predict` (`2027-02-10T13:30:00Z` vs `2027-02-10T08:30:00-05:00`) -> identical `delay_probability = 0.10089181363582611`, `threshold = 0.185`
+- Unseen route (`JFK -> ZZZ`) -> `200`, `route_status = fallback_global_median`
+- Unknown origin (`ZZZ -> LAX`) -> `422` fail-closed
 
-## Container Build
-
+### Docker (Linux `python:3.11-slim` + `libgomp1`)
 ```bash
-docker build -t flight-delay-ml-system:v2 .
-docker run -p 8000:8000 -e FLIGHT_DELAY_MODEL_PATH=/app/models/flight_delay_v2_bundle.joblib -v ./models:/app/models flight-delay-ml-system:v2
+docker build -t flight-delay-api:2.1.0 .
+docker run --rm -p 8000:8000 flight-delay-api:2.1.0
 ```
