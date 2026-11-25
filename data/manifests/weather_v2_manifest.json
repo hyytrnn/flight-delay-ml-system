@@ -1,0 +1,204 @@
+{
+  "config": {
+    "provider": "open-meteo-previous-runs",
+    "endpoint": "https://previous-runs-api.open-meteo.com/v1/forecast",
+    "model": "ecmwf_ifs025",
+    "lead_days": 2,
+    "assumed_availability_lag_hours": 6,
+    "tolerance_minutes": 30,
+    "start_date": "2024-04-01",
+    "end_date": "2025-08-31",
+    "top_n_airports": 25,
+    "variables": [
+      "temperature_2m",
+      "precipitation",
+      "wind_speed_10m",
+      "wind_gusts_10m",
+      "cloud_cover"
+    ],
+    "cache_path": "data/external/weather_v2_ecmwf_prevday2.parquet",
+    "manifest_path": "data/manifests/weather_v2_manifest.json",
+    "notes": [
+      "ECMWF IFS025 previous-runs archive begins around March 2024; 2023 is uncovered.",
+      "Using _previous_day2 (48h lead) with a 6h availability lag places model_availability_time_utc at T-42h, strictly <= T-24h.",
+      "Only matched-coverage flights (origin and dest both non-missing) are evaluated against flight-only on the exact same sample."
+    ]
+  },
+  "logs": [
+    {
+      "airport": "ATL",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "9c21c943315b4c7128bce21baf24a0c5016dd495987d3f28230c39305f932db7",
+      "retrieved_at_utc": "2026-11-24T14:29:47.196499+00:00"
+    },
+    {
+      "airport": "BNA",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "064db6e1f1f6945adf8bd412da12fff17e6ef70b420622b2f9e54736742fe03f",
+      "retrieved_at_utc": "2026-11-24T14:29:48.808958+00:00"
+    },
+    {
+      "airport": "BOS",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "b2cad3fddee0ad7e5c5a68804e62fac98a3b8cd2279cbc03c27e7fc312ede2b1",
+      "retrieved_at_utc": "2026-11-24T14:29:50.297982+00:00"
+    },
+    {
+      "airport": "BWI",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "85c90067b36736198877c69a1f2ad0754d0097287e370814b8edfddd7035d6f9",
+      "retrieved_at_utc": "2026-11-24T14:29:52.608219+00:00"
+    },
+    {
+      "airport": "CLT",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "57553bccba9f13433fdaa1d1202ee2aca36bd2c49c1128ffbe2110a2c27bc18d",
+      "retrieved_at_utc": "2026-11-24T14:29:54.249464+00:00"
+    },
+    {
+      "airport": "DCA",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "e9e56e73c33241803c5dc326ddada959b25e98f06ff2a0e82ff0c5eea121c247",
+      "retrieved_at_utc": "2026-11-24T14:29:56.086394+00:00"
+    },
+    {
+      "airport": "DEN",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "ebeb9fc7315e239d1ede2ed44d7fa4ca02b0082b98add3a1e68ee71884498ae7",
+      "retrieved_at_utc": "2026-11-24T14:29:57.886661+00:00"
+    },
+    {
+      "airport": "DFW",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "5fda2ca60727cd4c129f0f832b6c92321556dbddae519fb649d9596b82726aa7",
+      "retrieved_at_utc": "2026-11-24T14:29:59.627344+00:00"
+    },
+    {
+      "airport": "DTW",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "225d4d2ef6b940cbc6dd5df7c36d3cfcc226481a9d0db35f069aea19e270d683",
+      "retrieved_at_utc": "2026-11-24T14:30:01.087130+00:00"
+    },
+    {
+      "airport": "EWR",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "638d699da04320d999f9769c316396e3c1dbd0cd7fcef65ac8de2e87ba8ba99d",
+      "retrieved_at_utc": "2026-11-24T14:30:02.737536+00:00"
+    },
+    {
+      "airport": "IAH",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "34bf23c17a539123bed946c8c8059e6ee2a3f5b8e17304bacd4dd019715c1b42",
+      "retrieved_at_utc": "2026-11-24T14:30:04.633405+00:00"
+    },
+    {
+      "airport": "JFK",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "fa99d2cf973d25f95071b0d4e4e4c5c57f87c19220a08dae6f2ff87067891a31",
+      "retrieved_at_utc": "2026-11-24T14:30:06.192350+00:00"
+    },
+    {
+      "airport": "LAS",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "550a2fa8d68c898f64c40602e13485da2067de536343b9cfa326ab333027635a",
+      "retrieved_at_utc": "2026-11-24T14:30:07.876649+00:00"
+    },
+    {
+      "airport": "LAX",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "0b528592edcdf314c8e1d97a8b23f4b26e60248133086696a9ae980adc79f95c",
+      "retrieved_at_utc": "2026-11-24T14:30:09.255305+00:00"
+    },
+    {
+      "airport": "LGA",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "16bc1ad049a7c850e307960100879bbad32af42ff7f397c94d4c723e2779b831",
+      "retrieved_at_utc": "2026-11-24T14:30:11.119588+00:00"
+    },
+    {
+      "airport": "MCO",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "8e2a7a314f3d9848753ca1ac5c7f9fc180639662a181a2dbbd653daa4e5068f7",
+      "retrieved_at_utc": "2026-11-24T14:30:12.876417+00:00"
+    },
+    {
+      "airport": "MIA",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "d0e0687e60996be7f4785f5fae6e9499fac83e83567f66aafa195e9f322bd039",
+      "retrieved_at_utc": "2026-11-24T14:30:14.726291+00:00"
+    },
+    {
+      "airport": "MSP",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "dfcdb079cfe8a80902200151e5a8e36e1e3135c38616a0b6e30a23b103eb3522",
+      "retrieved_at_utc": "2026-11-24T14:30:16.427191+00:00"
+    },
+    {
+      "airport": "ORD",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "0ec565ab58aea4a79e567babdc59b7fdb6b8f2f51d7d9913b52c0bdc8c4331bf",
+      "retrieved_at_utc": "2026-11-24T14:30:19.531263+00:00"
+    },
+    {
+      "airport": "PHL",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "feaf62df03bc442f6e2c9d625abdd7e3eb8e8644a40e2c551bd4b81834d65347",
+      "retrieved_at_utc": "2026-11-24T14:30:21.107665+00:00"
+    },
+    {
+      "airport": "PHX",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "c2518672bd9a61a1cd7b0666cac858afa0ca87b630a0b1c8ac1f54003e5178f0",
+      "retrieved_at_utc": "2026-11-24T14:30:22.916763+00:00"
+    },
+    {
+      "airport": "SAN",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "876cb990b8106192dd0c7a99774ca882fa480c9e93bf433fbdf413485ddf9d65",
+      "retrieved_at_utc": "2026-11-24T14:30:24.439605+00:00"
+    },
+    {
+      "airport": "SEA",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "ed88db45ba80123c865e85f0ec9d05c0e82af79a2ec69ac8b81a7a07dea4ce98",
+      "retrieved_at_utc": "2026-11-24T14:30:25.976989+00:00"
+    },
+    {
+      "airport": "SFO",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "60e65a46d815e73e885f298a103fbafae26e25659dc5517d72eaac09bf296b49",
+      "retrieved_at_utc": "2026-11-24T14:30:27.675395+00:00"
+    },
+    {
+      "airport": "SLC",
+      "http_status": 200,
+      "rows": 12432,
+      "checksum": "1c223a7075776a606b16873786da46e5c5c56f0a33b81925a38288fb668886ae",
+      "retrieved_at_utc": "2026-11-24T14:30:29.167845+00:00"
+    }
+  ]
+}

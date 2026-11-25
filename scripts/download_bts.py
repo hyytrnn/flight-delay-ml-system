@@ -35,6 +35,14 @@ def parse_month(value: str) -> Month:
     return result
 
 
+def month_range(start: Month, end: Month) -> list[Month]:
+    start_index = start.year * 12 + start.month - 1
+    end_index = end.year * 12 + end.month - 1
+    if end_index < start_index:
+        raise ValueError("end month must not be before start month")
+    return [Month(index // 12, index % 12 + 1) for index in range(start_index, end_index + 1)]
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -119,13 +127,42 @@ def download(month: Month, root: Path) -> dict[str, object]:
     }
 
 
+def plan(month: Month, root: Path) -> dict[str, object]:
+    destination = root / str(month.year) / f"{month.month:02d}" / month.filename
+    return {
+        "flight_year": month.year,
+        "flight_month": month.month,
+        "source_url": f"{BASE_URL}/{month.filename}",
+        "path": destination.as_posix(),
+        "exists": destination.exists(),
+        "valid_zip": valid_zip(destination),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--months", nargs="+", type=parse_month, required=True)
+    parser.add_argument("--months", nargs="+", type=parse_month)
+    parser.add_argument("--start-month", type=parse_month)
+    parser.add_argument("--end-month", type=parse_month)
     parser.add_argument("--output-root", type=Path, default=Path("data/raw/bts"))
     parser.add_argument("--manifest", type=Path, default=Path("data/download_manifest.json"))
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    records = [download(month, args.output_root) for month in args.months]
+
+    if args.months and (args.start_month or args.end_month):
+        parser.error("use either --months or --start-month/--end-month")
+    if args.months:
+        months = args.months
+    elif args.start_month and args.end_month:
+        months = month_range(args.start_month, args.end_month)
+    else:
+        parser.error("provide --months or both --start-month and --end-month")
+
+    records = (
+        [plan(month, args.output_root) for month in months]
+        if args.dry_run
+        else [download(month, args.output_root) for month in months]
+    )
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
     args.manifest.write_text(json.dumps(records, indent=2), encoding="utf-8")
     print(json.dumps(records, indent=2))

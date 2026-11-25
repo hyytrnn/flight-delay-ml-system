@@ -1,0 +1,75 @@
+{
+  "number": 3,
+  "params": {
+    "colsample_bytree": 0.6727680575448478,
+    "gamma": 7.591084298026666,
+    "learning_rate": 0.021962256150304792,
+    "max_depth": 5,
+    "min_child_weight": 13,
+    "n_estimators": 500,
+    "reg_alpha": 1.1015056790269626,
+    "reg_lambda": 67.32248920775338,
+    "subsample": 0.7096834432905521
+  },
+  "user_attrs": {
+    "fold_results": [
+      {
+        "brier": 0.15070976316928864,
+        "fit_seconds": 48.69804109999677,
+        "fold": "fold_1",
+        "log_loss": 0.471714049577713,
+        "positive_rate_validation": 0.19807,
+        "pr_auc": 0.31529231903051375,
+        "roc_auc": 0.6625272379886785,
+        "rows_train": 1200000,
+        "rows_validation": 300000
+      },
+      {
+        "brier": 0.16579312086105347,
+        "fit_seconds": 61.5671444000036,
+        "fold": "fold_2",
+        "log_loss": 0.5059356689453125,
+        "positive_rate_validation": 0.2319,
+        "pr_auc": 0.37571878902009875,
+        "roc_auc": 0.6812425199137887,
+        "rows_train": 1500000,
+        "rows_validation": 300000
+      },
+      {
+        "brier": 0.15785330533981323,
+        "fit_seconds": 44.64338239998324,
+        "fold": "fold_3",
+        "log_loss": 0.48684802651405334,
+        "positive_rate_validation": 0.22458666666666666,
+        "pr_auc": 0.40420553434901807,
+        "roc_auc": 0.7035941546391167,
+        "rows_train": 1800000,
+        "rows_validation": 300000
+      },
+      {
+        "brier": 0.13227121531963348,
+        "fit_seconds": 132.04214999999385,
+        "fold": "fold_4",
+        "log_loss": 0.42777544260025024,
+        "positive_rate_validation": 0.16486,
+        "pr_auc": 0.26119895590981135,
+        "roc_auc": 0.6537250336825587,
+        "rows_train": 2100000,
+        "rows_validation": 300000
+      }
+    ],
+    "mean_brier": 0.1516568511724472,
+    "mean_log_loss": 0.4730682969093323,
+    "mean_pr_auc": 0.3391038995773605,
+    "mean_roc_auc": 0.6752722365560356,
+    "pr_auc_by_fold": [
+      0.31529231903051375,
+      0.37571878902009875,
+      0.40420553434901807,
+      0.26119895590981135
+    ],
+    "std_pr_auc": 0.05526084643495161,
+    "worst_fold_pr_auc": 0.26119895590981135
+  },
+  "value": 0.3391038995773605
+}

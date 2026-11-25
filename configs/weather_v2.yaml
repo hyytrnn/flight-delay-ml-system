@@ -1,0 +1,21 @@
+provider: open-meteo-previous-runs
+endpoint: https://previous-runs-api.open-meteo.com/v1/forecast
+model: ecmwf_ifs025
+lead_days: 2
+assumed_availability_lag_hours: 6
+tolerance_minutes: 30
+start_date: "2024-04-01"
+end_date: "2025-08-31"
+top_n_airports: 25
+variables:
+  - temperature_2m
+  - precipitation
+  - wind_speed_10m
+  - wind_gusts_10m
+  - cloud_cover
+cache_path: data/external/weather_v2_ecmwf_prevday2.parquet
+manifest_path: data/manifests/weather_v2_manifest.json
+notes:
+  - ECMWF IFS025 previous-runs archive begins around March 2024; 2023 is uncovered.
+  - Using _previous_day2 (48h lead) with a 6h availability lag places model_availability_time_utc at T-42h, strictly <= T-24h.
+  - Only matched-coverage flights (origin and dest both non-missing) are evaluated against flight-only on the exact same sample.

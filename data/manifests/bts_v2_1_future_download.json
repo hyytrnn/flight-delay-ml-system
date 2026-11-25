@@ -1,0 +1,24 @@
+[
+  {
+    "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_10.zip",
+    "source_url": "https://www.transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_10.zip",
+    "flight_year": 2025,
+    "flight_month": 10,
+    "downloaded_at_utc": "2026-11-25T01:00:44.340525+00:00",
+    "bytes": 30723803,
+    "sha256": "05d14d3fd67fa3e04b97c4d6bc7386f4a6c1cda13d2506cf0e9f0a6c620ed111",
+    "license_notes": "U.S. DOT BTS public data; verify current BTS terms",
+    "path": "data/raw/bts/2025/10/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_10.zip"
+  },
+  {
+    "filename": "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_11.zip",
+    "source_url": "https://www.transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_11.zip",
+    "flight_year": 2025,
+    "flight_month": 11,
+    "downloaded_at_utc": "2026-11-25T01:03:06.498822+00:00",
+    "bytes": 28847755,
+    "sha256": "6d5b68eea3ebb25f3cb2843e701a6c809b5455301b3bbd7802a20d522ed770c8",
+    "license_notes": "U.S. DOT BTS public data; verify current BTS terms",
+    "path": "data/raw/bts/2025/11/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2025_11.zip"
+  }
+]

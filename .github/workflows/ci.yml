@@ -16,7 +16,25 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - run: python -m ruff check src scripts tests
-      - run: python -m pytest --cov=flight_delay --cov-report=term-missing
+      - run: python -m pytest --cov=flight_delay --cov-report=term-missing --junitxml=pytest-results.xml
+      - name: Emit pytest failure annotations
+        if: failure()
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          p = Path("pytest-results.xml")
+          if p.exists():
+              for tc in ET.parse(p).findall(".//testcase"):
+                  for tag in ("failure", "error"):
+                      el = tc.find(tag)
+                      if el is not None:
+                          msg = ((el.attrib.get("message") or "") + " | " + (el.text or "")).replace("\r", " ").replace("\n", " | ")[:800]
+                          name = f"{tc.attrib.get('classname','')}.{tc.attrib.get('name','')}"
+                          print(f"::error title={name}::{msg}")
+          PY
       - run: python -m compileall -q src scripts tests
+      - run: python scripts/verify_fresh_clone_v2_1.py
       - run: docker build -t flight-delay-api:ci .
+      - run: docker run --rm flight-delay-api:ci python -c "from fastapi.testclient import TestClient; from flight_delay.api.main import app; r = TestClient(app).get('/health'); assert r.status_code == 200 and r.json()['model_loaded'] is True, r.text"
 

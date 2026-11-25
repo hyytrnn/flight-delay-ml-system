@@ -1,0 +1,26 @@
+{
+  "model_version": "flight-only-v2.1.0-xgboost",
+  "bundle_path": "models/flight_delay_v2_1_bundle.joblib",
+  "bundle_sha256": "8b48e8f0b730ac09d11536f4cf7e206962e116a0fcd4f762b02357c59a83d7f6",
+  "bundle_bytes": 884607,
+  "feature_group": "F3",
+  "feature_contract_version": "t24-v2.1-F3",
+  "selected_model": "xgboost",
+  "eval_strategy": "refit_full_train",
+  "calibration_method": "none",
+  "threshold": 0.185,
+  "threshold_precision_target_35": 0.285,
+  "weather_status": "not_used_flight_only_v2_1",
+  "data_manifest_sha256": "2ec48f400ec0b98f024cd953ce5efee0bbbf252ef8564cf7ac779725243c19a4",
+  "code_commit": "325d04899e57a5709b49675d964d4c004c386875",
+  "package_versions": {
+    "python": "3.11.9",
+    "scikit_learn": "1.9.1",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "catboost": "1.2.10"
+  },
+  "prospective_holdout_evaluated_once": true,
+  "prospective_holdout_window": "2025-10-01..2025-11-30",
+  "prospective_holdout_manifest_sha256": "7285c534ba07011ebd19280560456c02041a0d5cd485b1ad3badf44dd1405af6"
+}

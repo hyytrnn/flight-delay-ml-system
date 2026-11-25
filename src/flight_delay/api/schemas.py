@@ -39,6 +39,8 @@ class PredictionResponse(BaseModel):
     weather_status: str
     route_status: str
     prediction_at_utc: datetime
+    feature_contract_version: str = "t24-v1"
+    data_freshness: str | None = None
 
 
 class BatchRequest(BaseModel):

@@ -1,0 +1,6 @@
+{
+  "status": "NOT_APPLICABLE_FOR_FULL_MODEL",
+  "reason": "Standard Sobol variance decomposition assumes independent continuous inputs over factorizable marginal bounds. V2 F3 combines high-cardinality correlated categoricals (reporting_airline, origin, dest, carrier_route, origin_hour) and paired cyclical trig terms (sin/cos) plus airport coordinates/distance, where independent uniform sampling creates physically impossible flights. Grouped permutation importance and TreeSHAP are used instead.",
+  "sample_size": 2000,
+  "eval_window": "2025-06-01..2025-09-01"
+}

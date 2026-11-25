@@ -1,0 +1,30 @@
+name: Release V2.1 Bundle
+
+on:
+  push:
+    tags:
+      - "v2.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python scripts/verify_fresh_clone_v2_1.py
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            models/flight_delay_v2_1_bundle.joblib
+            models/manifest_v2_1.json
+            models/locked_v2_manifest.json
+            reports/holdout_v2_1/PROSPECTIVE_EVAL_ONCE.md

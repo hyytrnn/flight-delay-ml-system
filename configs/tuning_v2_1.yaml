@@ -1,0 +1,18 @@
+seed: 42
+splits: configs/splits_v2_1.yaml
+data_root: data/processed/v2
+development_end_exclusive: "2025-01-01"
+storage: sqlite:///reports/optuna_v2_1/v2_1_study.db
+screening_eval_strategy: probe_only
+final_eval_strategy: refit_full_train
+budgets:
+  xgboost_total_trials: 20
+  xgboost_timeout_seconds: 2000
+  lightgbm_trials: 25
+  lightgbm_timeout_seconds: 1200
+  catboost_trials: 6
+  catboost_timeout_seconds: 900
+pruner:
+  type: MedianPruner
+  n_startup_trials: 5
+  n_warmup_steps: 2

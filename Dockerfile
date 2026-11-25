@@ -2,11 +2,12 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    FLIGHT_DELAY_MODEL_PATH=/app/models/flight_delay_bundle.joblib
+    FLIGHT_DELAY_MODEL_PATH=/app/models/flight_delay_v2_1_bundle.joblib
 
 WORKDIR /app
 
-RUN addgroup --system app && adduser --system --ingroup app app
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/* && \
+    addgroup --system app && adduser --system --ingroup app app
 
 COPY pyproject.toml README.md ./
 COPY src/ ./src/

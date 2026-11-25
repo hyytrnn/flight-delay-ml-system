@@ -1,0 +1,10 @@
+source,asset,event_time,availability_time,status_for_t24,allowed_use,main_risk
+BTS Reporting Carrier,schedule fields,scheduled service time,publication timestamp unavailable,YELLOW,retrospective offline benchmark,schedule may not have been published by T-24h
+BTS Reporting Carrier,DepDel15 and outcomes,actual flight operation,BTS publication after operation,RED,target and retrospective evaluation only,post-outcome leakage
+airportsdata,airport coordinates elevation timezone,static reference,package release time,GREEN if version predates prediction,static airport features,reference corrections over time
+ADS-B,realized traffic positions,message timestamp,receiver ingestion timestamp,RED for future flight flow,completed-event history only,using future realized flow
+Published schedule snapshot,planned traffic counts,schedule valid time,snapshot publication time,GREEN when snapshot <= prediction_at,prospective congestion features,snapshot provenance required
+Open-Meteo issued run,origin and destination forecast,forecast valid time,run publication and availability time,GREEN when available <= prediction_at,weather-aware model,run initialization alone may not prove availability
+NOAA or Meteostat observation,observed weather,observation time,after observation,RED for T-24h prediction,retrospective EDA only,hindsight weather leakage
+Historical target aggregates,carrier airport route delay rate,outcome event time,label publication time,YELLOW or RED unless publication proven,research-only ablation,target leakage and BTS publication lag
+

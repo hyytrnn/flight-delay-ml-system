@@ -1,4 +1,5 @@
 .venv/
+tmp/
 *.egg-info/
 __pycache__/
 *.py[cod]
@@ -8,6 +9,7 @@ __pycache__/
 
 data/raw/**/*
 !data/raw/.gitkeep
+data/external/weather_*.parquet
 data/interim/**/*
 !data/interim/.gitkeep
 data/processed/**/*
@@ -16,9 +18,16 @@ data/processed/**/*
 models/**/*
 !models/.gitkeep
 !models/flight_delay_bundle.joblib
+!models/flight_delay_v2_bundle.joblib
+!models/flight_delay_v2_1_bundle.joblib
+!models/locked_v2_manifest.json
+!models/manifest_v2_1.json
 reports/smoke/*.parquet
+reports/data/v2_smoke/
+reports/eda_v2_smoke/
 
 *.log
 .coverage
 htmlcov/
+pytest-results.xml
 
