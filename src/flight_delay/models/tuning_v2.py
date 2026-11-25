@@ -42,6 +42,18 @@ from flight_delay.features.v2 import FeatureGroup, build_v2_feature_frame, v2_fe
 from flight_delay.models.predictor import CategoricalFrameTransformer
 
 ModelName = Literal["xgboost", "lightgbm", "catboost"]
+
+XGBOOST_FIXED_PARAMS: dict[str, Any] = {
+    "n_estimators": 280,
+    "max_depth": 6,
+    "learning_rate": 0.08,
+    "min_child_weight": 5,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "gamma": 0.0,
+    "reg_lambda": 1.0,
+    "reg_alpha": 0.05,
+}
 AllModelName = Literal[
     "dummy_prior",
     "logistic_regression",
